@@ -13,6 +13,7 @@ precision mediump float;
 
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec3 aColor;
+layout(location = 2) in vec3 aNormal;    // <-- ajout
 
 uniform float uAngle;
 uniform mat4 uProjection;
@@ -20,23 +21,30 @@ uniform mat4 uView;
 
 out float vHeight;
 out vec3 vColor;
+out vec3 vNormal;                        // <-- ajout
 
 void main() {
     float c = cos(uAngle);
     float s = sin(uAngle);
     vec3 pos = aPos;
 
-    // Rotation 2D autour de Z
     float x = pos.x * c - pos.y * s;
     float y = pos.x * s + pos.y * c;
-    vec4 rotatedPos = vec4(x, y, pos.z, 1.0);
+    vec3 rotatedPos = vec3(x, y, pos.z);
 
-    gl_Position = uProjection * uView * rotatedPos;
+    gl_Position = uProjection * uView * vec4(rotatedPos, 1.0);
 
-    // Distance au centre : hauteur avec la déformation
     vHeight = length(pos);
-
     vColor = aColor;
+
+    // Appliquer la même rotation sur la normale
+    float nx = aNormal.x * c - aNormal.y * s;
+    float ny = aNormal.x * s + aNormal.y * c;
+    float nz = aNormal.z;
+
+    vNormal = normalize(vec3(nx, ny, nz));
+
+    //vNormal = aNormal;
 }
 )";
 
@@ -44,53 +52,85 @@ const char* fragmentShaderSrc = R"(#version 300 es
 precision mediump float;
 
 uniform float uLvlSea;
+uniform vec3 uLightDir;  // direction lumière normalisée
 
 in float vHeight;
 in vec3 vColor;
+in vec3 vNormal;
 out vec4 FragColor;
 
 void main() {
-    vec3 color;
 
     // Seuils définissant les zones de hauteur (modifiable selon ta scène)
     float mountainStart = 1.01;
     float mountainPeak = 1.04;
 
+    vec3 normal = normalize(vNormal);
+    vec3 lightDir = normalize(uLightDir);
+
+    float diff = max(dot(normal, lightDir), 0.0);
+
+    // Couleur éclairée diffuse + un ambiant faible
+    vec3 ambient = 0.3 * vColor;
+    vec3 diffuse = diff * vColor;
+
+    vec3 color = ambient + diffuse;
+
     if (vHeight < uLvlSea + 0.01) {
-        // Océan
-        float t = (vHeight + 1.0) / (uLvlSea + 1.01);
-        t = clamp(t, 0.0, 1.0);
-        color = vec3(0.0, 0.0, 0.5 * t);
-    } else {
-        //float tLinear = clamp((vHeight - mountainStart) / (mountainPeak - mountainStart), 0.0, 1.0);
-
-        //float gamma = 0.4;
-        //float t = pow(tLinear, gamma);
-
-        //vec3 landColor = vec3(0.1, 0.6, 0.1);
-        //vec3 mountainColor = vec3(0.5, 0.5, 0.5);
-        //vec3 snowColor = vec3(1.0, 1.0, 1.0);
-
-        //vec3 intermediateColor = mix(landColor, mountainColor, t);
-
-        //float snowThreshold = 0.7;
-        //if (t > snowThreshold) {
-        //    float snowT = (t - snowThreshold) / (1.0 - snowThreshold);
-        //    color = mix(intermediateColor, snowColor, snowT);
-        //} else {
-        //    color = intermediateColor;
-        //}
-
-        color = vColor;
+        color = vec3(0.0, 0.0, 0.3 + 0.2 * (uLvlSea + 0.01 - vHeight) * 50.0);
     }
 
+    //FragColor = vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
     FragColor = vec4(color, 1.0);
 }
 )";
 
-const float LVLSEA = 0.99;
+const float LVLSEA = 0.990;
 const int SUBDIVISION_ISO = 6;
+float radius = 8.0f;         // distance caméra <-> cible (zoom)
+float cameraYaw = 0.0f;      // angle horizontal (azimut)
+float cameraPitch = 0.0f;    // angle vertical (élévation), limité pour éviter flip
+bool isDragging = false;
+double lastMouseX = 0;
+double lastMouseY = 0;
 
+EM_BOOL mouse_down_callback(int eventType, const EmscriptenMouseEvent* e, void* userData) {
+    if (eventType == EMSCRIPTEN_EVENT_MOUSEDOWN) {
+        printf("DRAG\n");
+        isDragging = true;
+        lastMouseX = e->clientX;
+        lastMouseY = e->clientY;
+    } else if (eventType == EMSCRIPTEN_EVENT_MOUSEUP) {
+        printf("UNDRAG\n");
+        isDragging = false;
+    }
+    return true;
+}
+
+EM_BOOL mouse_move_callback(int eventType, const EmscriptenMouseEvent* e, void* userData) {
+    printf("MOVE\n");
+    if (isDragging) {
+        double deltaX = e->clientX - lastMouseX;
+        double deltaY = e->clientY - lastMouseY;
+
+        lastMouseX = e->clientX;
+        lastMouseY = e->clientY;
+
+        //float sensitivity = 0.05f;
+        cameraYaw += deltaX * 0.05f;
+        cameraPitch += deltaY * 0.05f;
+        printf("%f\n", cameraYaw);
+        printf("%f\n", cameraPitch);
+
+        // Appliquer la rotation en fonction de deltaX et deltaY
+        // Exemple : rotationYaw += deltaX * sensibility
+        //           rotationPitch += deltaY * sensibility
+        // puis mise à jour de la direction caméra
+
+        // (à implémenter selon ta gestion de la caméra)
+    }
+    return true;
+}
 
 
 
@@ -293,8 +333,8 @@ void initIcosahedron() {
 // --- Génération de l'icosphère avec déformation bruitée ---
 
 const float RADIUS = 1.0f;
-const float noiseScale = 1.0f;      // fréquence du bruit
-const float heightAmplitude = 0.1f; // amplitude de la déformation
+const float noiseScale = 2.0f;      // fréquence du bruit
+const float heightAmplitude = 0.02f; // amplitude de la déformation
 
 // Cette fonction crée un buffer sphère avec déformation de bruit
 // et stocke dans sphereVertices et sphereIndices les données pour OpenGL
@@ -308,21 +348,16 @@ void generateIcosphereWithNoise(int subdivisions) {
     sphereVertices.clear();
     sphereIndices.clear();
 
-    // Pour chaque sommet, applique la déformation bruitée et crée couleur
+    // --- Étape 1 : Création des sommets déformés + couleur ---
     for (const auto& v : vertices) {
-        // Paramètres d'octaves à ajuster selon le rendu souhaité
         int octaves = 8;
-        float persistence = 0.8f;
+        float persistence = 0.9f;
 
         float noiseVal = fbmPerlinNoise(v.x, v.y, v.z, octaves, persistence, noiseScale);
-
         float heightOffset = noiseVal * heightAmplitude;
-
         float deformedRadius = RADIUS + heightOffset;
 
         if (deformedRadius < LVLSEA) {
-            //float blendFactor = 0.3f; // à ajuster entre 0 (pas de correction) et 1 (clamp dur)
-            //deformedRadius = deformedRadius * (1.0f - blendFactor) + minRadius * blendFactor;
             deformedRadius = LVLSEA;
         }
 
@@ -330,61 +365,88 @@ void generateIcosphereWithNoise(int subdivisions) {
         float posY = deformedRadius * v.y;
         float posZ = deformedRadius * v.z;
 
-        int colorOctaves = 3;               // moins d'octaves pour régions plus larges
+        int colorOctaves = 3;
         float colorPersistence = 0.6f;
-        float colorNoiseScale = 60;      // fréquence plus basse pour grandes régions
-        float colorNoiseScale2 = 1;
+        float colorNoiseScale = 60.f;
 
         float noiseValColor = fbmPerlinNoise(v.x, v.y, v.z, colorOctaves, colorPersistence, colorNoiseScale);
-        float noiseValColor_r = fbmPerlinNoise(v.x, v.y, v.z, colorOctaves, colorPersistence, colorNoiseScale2);
-        float noiseValColor_g = fbmPerlinNoise(v.x, v.y, v.z, colorOctaves, colorPersistence, colorNoiseScale2);
-        float noiseValColor_b = fbmPerlinNoise(v.x, v.y, v.z, colorOctaves, colorPersistence, colorNoiseScale2);
+        float blend = 0.5f + 0.5f * noiseVal;
+        float region = 0.5f + 0.5f * noiseValColor;
 
-        //float posX = (RADIUS + heightOffset) * v.x;
-        //float posY = (RADIUS + heightOffset) * v.y;
-        //float posZ = (RADIUS + heightOffset) * v.z;
-
-        // Exemple simple : palette verte-brune mixée selon noiseValColor
-        float blend = 0.5f + 0.5f * noiseVal;  // normalisé [0,1] Altitude
-        float region = 0.5f + 0.5f * noiseValColor;  // normalisé [0,1] Altitude
-        
-        float r2 = 0.3 * noiseValColor_r;
-        float g2 = 1 * noiseValColor_g;
-        float b2 = 0.2f * noiseValColor_b;
-        //float r = blend * 0.7f + (region * 0.25f + r2 * 0.75) * 0.3f;
-        //float g = blend * 0.7f + (region * 0.25f + g2 * 0.75) * 0.3f;
-        //float b = blend * 0.7f + (region * 0.25f + b2 * 0.75) * 0.3f;
-
-        float r = (blend * 0.7f + region * 0.3f) * 0.5f + r2 * 0.5f;
-        float g = (blend * 0.7f + region * 0.3f) * 0.5f + g2 * 0.5f;
-        float b = (blend * 0.7f + region * 0.3f) * 0.5f + b2 * 0.5f;
-        //float r = blend * 0.3f + (1.0f - blend) * 0.1f;      // mélange brun clair / vert foncé
-        //float g = blend * 0.6f + (1.0f - blend) * 0.3f;
-        //float b = blend * 0.2f + (1.0f - blend) * 0.1f;
-
-        // mix final possible avec la valeur ‘c’ précédente (par exemple selon hauteur)
-
-
-        //float c = 0.5f + 0.5f * noiseVal;
+        float r = (blend * 0.7f + region * 0.3f) * 0.5f;
+        float g = (blend * 0.7f + region * 0.3f) * 0.5f;
+        float b = (blend * 0.7f + region * 0.3f) * 0.5f;
 
         sphereVertices.push_back(posX);
         sphereVertices.push_back(posY);
         sphereVertices.push_back(posZ);
-
         sphereVertices.push_back(r);
         sphereVertices.push_back(g);
         sphereVertices.push_back(b);
     }
 
-    // Indices : conversion de unsigned int vers unsigned short avec précaution
+    // --- Étape 2 : Préparer les indices ---
+    sphereIndices.clear();
     for (unsigned int idx : indices) {
         if (idx > 65535) {
-            // Attention : dépassement index pour unsigned short, augmenter le type si nécessaire!
             printf("Index dépasse 65535, attention!\n");
         }
         sphereIndices.push_back(static_cast<unsigned short>(idx));
     }
+
+    // --- Étape 3 : Calcul des normales ---
+    size_t vertexCount = vertices.size();
+    std::vector<Vec3> normals(vertexCount, Vec3{0.0f, 0.0f, 0.0f});
+
+    for (size_t i = 0; i < sphereIndices.size(); i += 3) {
+        unsigned int i0 = sphereIndices[i];
+        unsigned int i1 = sphereIndices[i+1];
+        unsigned int i2 = sphereIndices[i+2];
+
+        Vec3 v0 = {sphereVertices[6*i0], sphereVertices[6*i0+1], sphereVertices[6*i0+2]};
+        Vec3 v1 = {sphereVertices[6*i1], sphereVertices[6*i1+1], sphereVertices[6*i1+2]};
+        Vec3 v2 = {sphereVertices[6*i2], sphereVertices[6*i2+1], sphereVertices[6*i2+2]};
+
+        Vec3 edge1 = v1 - v0;
+        Vec3 edge2 = v2 - v0;
+
+        Vec3 normal = {
+            edge1.y*edge2.z - edge1.z*edge2.y,
+            edge1.z*edge2.x - edge1.x*edge2.z,
+            edge1.x*edge2.y - edge1.y*edge2.x
+        };
+        normal = normal.normalize();
+
+        normals[i0] = normals[i0] + normal;
+        normals[i1] = normals[i1] + normal;
+        normals[i2] = normals[i2] + normal;
+    }
+
+    for (auto& n : normals) {
+        n = n.normalize();
+    }
+
+    // --- Étape 4 : Construire le buffer final avec normales incluses ---
+    std::vector<float> sphereVerticesWithNormals;
+    sphereVerticesWithNormals.reserve(vertexCount * 9);
+
+    for (size_t i = 0; i < vertexCount; ++i) {
+        sphereVerticesWithNormals.push_back(sphereVertices[6*i + 0]); // posX
+        sphereVerticesWithNormals.push_back(sphereVertices[6*i + 1]); // posY
+        sphereVerticesWithNormals.push_back(sphereVertices[6*i + 2]); // posZ
+
+        sphereVerticesWithNormals.push_back(sphereVertices[6*i + 3]); // r
+        sphereVerticesWithNormals.push_back(sphereVertices[6*i + 4]); // g
+        sphereVerticesWithNormals.push_back(sphereVertices[6*i + 5]); // b
+
+        sphereVerticesWithNormals.push_back(normals[i].x);
+        sphereVerticesWithNormals.push_back(normals[i].y);
+        sphereVerticesWithNormals.push_back(normals[i].z);
+    }
+
+    sphereVertices = std::move(sphereVerticesWithNormals);
 }
+
 
 GLuint program, vao, vbo, ebo;
 
@@ -437,6 +499,11 @@ void init() {
     int canvasHeight = (int)(height * dpr);
     emscripten_set_canvas_element_size("#canvas", canvasWidth, canvasHeight);
 
+    emscripten_set_mousedown_callback("#canvas", nullptr, true, mouse_down_callback);
+    emscripten_set_mouseup_callback("#canvas", nullptr, true, mouse_down_callback);
+    emscripten_set_mousemove_callback("#canvas", nullptr, true, mouse_move_callback);
+
+
     initPermutation();
 
     // Génère une icosphère subdivisée (par exemple 3 subdivisions ~ 642 sommets)
@@ -469,11 +536,14 @@ void init() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphereIndices.size() * sizeof(unsigned short), sphereIndices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 }
@@ -538,7 +608,7 @@ void lookAt(float m[16],
 void render() {
     int width, height;
     static float angle = 0.0f;
-    angle += 0.01f;
+    angle += 0.001f;
 
     emscripten_get_canvas_element_size("#canvas", &width, &height);
     glViewport(0, 0, width, height);
@@ -547,13 +617,44 @@ void render() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     float view[16];
-    lookAt(view, 0, 5, 5, 0, 0, 0, 0, 1, 0);
+
+    // Calcul position caméra orbitale selon angles
+    float camPosX = radius * cosf(cameraPitch) * sinf(cameraYaw);
+    float camPosY = radius * sinf(cameraPitch);
+    float camPosZ = radius * cosf(cameraPitch) * cosf(cameraYaw);
+
+    // Point fixe regardé (exemple)
+    float targetX = 0.0f;
+    float targetY = 0.0f;
+    float targetZ = 0.0f;
+
+    // Calcul matrice vue
+    lookAt(view,
+        camPosX, camPosY, camPosZ,
+        targetX, targetY, targetZ,
+        0.0f, 1.0f, 0.0f);
 
     float projection[16];
     float aspect = (float)width / (float)height;
     perspective(projection, 45.f, aspect, 0.1f, 100.f);
 
     glUseProgram(program);
+    float camPos[3] = {0.0f, 5.0f, 5.0f};
+    float target[3] = {0.0f, 0.0f, 0.0f};
+    float lightDir[3] = {
+        target[0] - camPos[0],
+        target[1] - camPos[1],
+        target[2] - camPos[2]
+    };
+
+    // Normaliser lightDir
+    float len = sqrtf(lightDir[0]*lightDir[0] + lightDir[1]*lightDir[1] + lightDir[2]*lightDir[2]);
+    lightDir[0] /= len;
+    lightDir[1] /= len;
+    lightDir[2] /= len;
+
+    // Envoyer la direction lumière (depuis la caméra)
+    glUniform3fv(glGetUniformLocation(program, "uLightDir"), 1, lightDir);
     glUniformMatrix4fv(uProjectionLoc, 1, GL_FALSE, projection);
     glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, view);
     glUniform1f(uAngleLoc, angle);
