@@ -85,9 +85,9 @@ void main() {
 }
 )";
 
-const float LVLSEA = 0.990;
-const int SUBDIVISION_ISO = 6;
-float radius = 8.0f;         // distance caméra <-> cible (zoom)
+const float LVLSEA = 0.989;
+const int SUBDIVISION_ISO = 9;
+float radius = 2.0f;         // distance caméra <-> cible (zoom)
 float cameraYaw = 0.0f;      // angle horizontal (azimut)
 float cameraPitch = 0.0f;    // angle vertical (élévation), limité pour éviter flip
 bool isDragging = false;
@@ -339,7 +339,7 @@ const float heightAmplitude = 0.02f; // amplitude de la déformation
 // Cette fonction crée un buffer sphère avec déformation de bruit
 // et stocke dans sphereVertices et sphereIndices les données pour OpenGL
 std::vector<float> sphereVertices;
-std::vector<unsigned short> sphereIndices;
+std::vector<unsigned int> sphereIndices;
 
 void generateIcosphereWithNoise(int subdivisions) {
     initIcosahedron();
@@ -373,9 +373,9 @@ void generateIcosphereWithNoise(int subdivisions) {
         float blend = 0.5f + 0.5f * noiseVal;
         float region = 0.5f + 0.5f * noiseValColor;
 
-        float r = (blend * 0.7f + region * 0.3f) * 0.5f;
-        float g = (blend * 0.7f + region * 0.3f) * 0.5f;
-        float b = (blend * 0.7f + region * 0.3f) * 0.5f;
+        float r = (blend * 0.7f + region * 0.3f) * 0.5f + 0.7f * 0.5f;
+        float g = (blend * 0.7f + region * 0.3f) * 0.5f + 0.8f * 0.5f; 
+        float b = (blend * 0.7f + region * 0.3f) * 0.5f + 0.6f * 0.5f;
 
         sphereVertices.push_back(posX);
         sphereVertices.push_back(posY);
@@ -388,10 +388,7 @@ void generateIcosphereWithNoise(int subdivisions) {
     // --- Étape 2 : Préparer les indices ---
     sphereIndices.clear();
     for (unsigned int idx : indices) {
-        if (idx > 65535) {
-            printf("Index dépasse 65535, attention!\n");
-        }
-        sphereIndices.push_back(static_cast<unsigned short>(idx));
+        sphereIndices.push_back(static_cast<unsigned int>(idx));
     }
 
     // --- Étape 3 : Calcul des normales ---
@@ -534,7 +531,7 @@ void init() {
 
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphereIndices.size() * sizeof(unsigned short), sphereIndices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sphereIndices.size() * sizeof(unsigned int), sphereIndices.data(), GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -661,7 +658,7 @@ void render() {
     glUniform1f(uLvlSeaLoc, LVLSEA);
 
     glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, (GLsizei)sphereIndices.size(), GL_UNSIGNED_SHORT, 0);
+    glDrawElements(GL_TRIANGLES, (GLsizei)sphereIndices.size(), GL_UNSIGNED_INT, 0);
 
 }
 
