@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cube WebGL C++ + Emscripten</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 2.5em;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        #canvas {
+            border: 3px solid #00ff88;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 255, 136, 0.3);
+            background: #000;
+            transition: transform 0.3s ease;
+        }
+        
+        #canvas:hover {
+            transform: scale(1.02);
+            box-shadow: 0 15px 40px rgba(0, 255, 136, 0.5);
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        button {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
+        }
+        
+        button:hover {
+            background: linear-gradient(45deg, #00cc6a, #00ff88);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 255, 136, 0.5);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .info {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 700px;
+            text-align: center;
+        }
+        
+        .compilation-info {
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #00ff88;
+            text-align: left;
+            font-size: 0.9em;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        
+        .status.loading {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #ffc107;
+            color: #ffc107;
+        }
+        
+        .status.ready {
+            background: rgba(40, 167, 69, 0.2);
+            border: 1px solid #28a745;
+            color: #28a745;
+        }
+        
+        .status.error {
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid #dc3545;
+            color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Cube WebGL C++ + Emscripten</h1>
+    
+    <canvas id="canvas" width="800" height="600"></canvas>
+    
+    <div class="controls">
+        <button id="toggleBtn" onclick="callCppFunction('toggleRotation')" disabled>⏯️ Toggle Rotation</button>
+        <button id="colorBtn" onclick="callCppFunction('changeColor')" disabled>🎨 Changer Couleur</button>
+        <button id="resetBtn" onclick="callCppFunction('resetView')" disabled>🔄 Reset Vue</button>
+    </div>
+    
+    <div id="status" class="status loading">
+        📥 Chargement du module WebAssembly...
+    </div>
+    
+    <div class="info">
+        <h3>🚀 Projet C++ WebGL avec Emscripten</h3>
+        <p>Ce projet utilise du vrai C++ compilé en WebAssembly via Emscripten pour le rendu WebGL.</p>
+        
+        <div class="compilation-info">
+            <strong>📋 Instructions de compilation :</strong><br><br>
+            
+            <strong>1. Installation d'Emscripten :</strong><br>
+            <code>git clone https://github.com/emscripten-core/emsdk.git<br>
+            cd emsdk<br>
+            ./emsdk install latest<br>
+            ./emsdk activate latest<br>
+            source ./emsdk_env.sh</code><br><br>
+            
+            <strong>2. Compilation du projet :</strong><br>
+            <code>emcc main.cpp -o cube.js \<br>
+            &nbsp;&nbsp;-s USE_WEBGL2=1 \<br>
+            &nbsp;&nbsp;-s FULL_ES2=1 \<br>
+            &nbsp;&nbsp;-s EXPORTED_FUNCTIONS='["_main","_toggleRotation","_changeColor","_resetView"]' \<br>
+            &nbsp;&nbsp;-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \<br>
+            &nbsp;&nbsp;-s ALLOW_MEMORY_GROWTH=1 \<br>
+            &nbsp;&nbsp;-O2</code><br><br>
+            
+            <strong>3. Structure des fichiers :</strong><br>
+            <code>project/<br>
+            ├── main.cpp      (code source C++)<br>
+            ├── index.html    (cette page)<br>
+            ├── cube.js       (généré par emscripten)<br>
+            └── cube.wasm     (WebAssembly binaire)</code>
+        </div>
+    </div>
+
+    <script>
+        // Variables globales pour les fonctions C++
+        let Module = {};
+        let cppFunctions = {};
+        
+        // Configuration du module Emscripten
+        Module.onRuntimeInitialized = function() {
+            console.log('Module WebAssembly initialisé');
+            
+            try {
+                // Liaison des fonctions C++ exportées
+                cppFunctions.toggleRotation = Module.cwrap('toggleRotation', null, []);
+                cppFunctions.changeColor = Module.cwrap('changeColor', null, []);
+                cppFunctions.resetView = Module.cwrap('resetView', null, []);
+                
+                // Activation des boutons
+                enableControls();
+                updateStatus('ready', '✅ Module C++ prêt - Rendu WebGL actif');
+                
+                console.log('Fonctions C++ liées avec succès');
+            } catch (error) {
+                console.error('Erreur lors de la liaison des fonctions:', error);
+                updateStatus('error', '❌ Erreur de liaison des fonctions C++');
+            }
+        };
+        
+        Module.onAbort = function(what) {
+            console.error('Module aborté:', what);
+            updateStatus('error', '❌ Erreur d\'initialisation du module');
+        };
+        
+        // Configuration du canvas
+        Module.canvas = document.getElementById('canvas');
+        
+        // Fonction pour appeler les fonctions C++
+        function callCppFunction(functionName) {
+            try {
+                if (cppFunctions[functionName]) {
+                    cppFunctions[functionName]();
+                    console.log('Fonction C++ appelée:', functionName);
+                } else {
+                    console.error('Fonction C++ non trouvée:', functionName);
+                }
+            } catch (error) {
+                console.error('Erreur lors de l\'appel de la fonction C++:', error);
+            }
+        }
+        
+        function enableControls() {
+            document.getElementById('toggleBtn').disabled = false;
+            document.getElementById('colorBtn').disabled = false;
+            document.getElementById('resetBtn').disabled = false;
+        }
+        
+        function updateStatus(type, message) {
+            const statusElement = document.getElementById('status');
+            statusElement.className = `status ${type}`;
+            statusElement.textContent = message;
+        }
+        
+        // Gestion d'erreur si le fichier WebAssembly n'est pas trouvé
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (!Module.onRuntimeInitialized || typeof Module._main === 'undefined') {
+                    updateStatus('error', '❌ Fichiers WebAssembly manquants - Compilez d\'abord le C++');
+                    
+                    // Affichage d'instructions détaillées
+                    const info = document.querySelector('.info');
+                    info.innerHTML += `
+                        <div style="margin-top: 20px; padding: 15px; background: rgba(220, 53, 69, 0.1); border-radius: 10px; border: 1px solid #dc3545;">
+                            <h4>⚠️ Fichiers manquants</h4>
+                            <p>Pour voir ce projet en action, vous devez :</p>
+                            <ol style="text-align: left; max-width: 500px; margin: 0 auto;">
+                                <li>Sauvegarder le code C++ dans <code>main.cpp</code></li>
+                                <li>Installer Emscripten</li>
+                                <li>Compiler avec la commande ci-dessus</li>
+                                <li>Servir les fichiers via un serveur HTTP</li>
+                            </ol>
+                        </div>
+                    `;
+                }
+            }, 2000);
+        });
+        
+        // Redimensionnement du canvas
+        window.addEventListener('resize', function() {
+            if (Module.canvas) {
+                // Le redimensionnement sera géré par le code C++
+                console.log('Fenêtre redimensionnée');
+            }
+        });
+    </script>
+    
+    <!-- 
+        Ce script sera généré par Emscripten après compilation
+        Décommentez cette ligne après avoir compilé le C++ :
+    -->
+    <!-- <script src="cube.js"></script> -->
+    
+</body>
+</html>
