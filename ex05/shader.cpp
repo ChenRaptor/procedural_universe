@@ -19,9 +19,10 @@ void main() {
     float s = sin(uAngle);
     vec3 pos = aPos;
 
-    float x = pos.x * c - pos.y * s;
-    float y = pos.x * s + pos.y * c;
-    vec3 rotatedPos = vec3(x, y, pos.z);
+    float x = pos.x * c + pos.z * s;
+    float y = pos.y;
+    float z = -pos.x * s + pos.z * c;
+    vec3 rotatedPos = vec3(x, y, z);
 
     gl_Position = uProjection * uView * vec4(rotatedPos, 1.0);
 

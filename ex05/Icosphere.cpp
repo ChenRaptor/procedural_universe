@@ -138,129 +138,6 @@ void IcoSphere::subdivideTriangles() {
 
 extern float fbmPerlinNoise(float x, float y, float z, int octaves, float persistence, float scale);
 
-//void IcoSphere::generate() {
-//    initIcosahedron();
-//    for (int i = 0; i < subdivisions_; ++i)
-//        subdivideTriangles();
-
-//    size_t vertexCount = vertices_.size();
-//    size_t indexCount = indices_.size();
-
-//    sphereVertices_.clear();
-//    sphereIndices_.clear();
-//    sphereVertices_.resize(vertexCount * 9); // pos(3), color(3), normal(3)
-//    sphereIndices_.reserve(indexCount);
-
-//    // Calcul positions déformées + couleurs, normales à zero
-//    for (size_t i = 0; i < vertexCount; ++i) {
-//        const Vec3& v = vertices_[i];
-
-//		float ContinentNoise = fbmPerlinNoise(v.x, v.y, v.z, continentOctaves_, continentPersistence_, continentNoiseScale_);
-
-//		float bigMountainNoise = fbmPerlinNoise(v.x, v.y, v.z, bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
-
-//        float mountainNoise = fbmPerlinNoise(v.x, v.y, v.z, mountainOctaves_, mountainPersistence_, mountainNoiseScale_);
-//        //float deformedRadius = radius_ + (((mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f)) * heightAmplitude_ +  (bigMountainNoise > 0.0f ? (bigMountainNoise * ((ContinentNoise + 1) / 2)) : 0.0f) * heightAmplitude_);
-		
-//		float threshold = 0.1f; // seuil à ajuster, par ex. 0.1
-//		float weightContinent = 0.0f;
-//		if (ContinentNoise > 0.0f) {
-//			weightContinent = (ContinentNoise < threshold) ? (ContinentNoise / threshold) : 1.0f;
-//		}
-		
-//		float deformedRadius = radius_ + (((mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f)) * heightAmplitude_);
-//		deformedRadius += (bigMountainNoise > 0) * weightContinent * bigMountainNoise * heightAmplitude_ / 4;
-
-//        if (deformedRadius < lvlSea_) deformedRadius = lvlSea_;
-
-//        float posX = deformedRadius * v.x;
-//        float posY = deformedRadius * v.y;
-//        float posZ = deformedRadius * v.z;
-
-//        float BiomeNoise = fbmPerlinNoise(v.x, v.y, v.z, biomeOctaves_, biomePersistence_, biomeNoiseScale_);
-
-//        //float blend = ((0.5f + 0.5f * mountainNoise) * 0.7f) + ((0.5f + 0.5f * BiomeNoise) * 0.3f);
-
-//		Color col = getColorFromNoise(BiomeNoise, biomePalette_);
-//		Color col2 = getColorFromNoise(mountainNoise, mountainPalette_);
-//		Color col3 = getColorFromNoise(bigMountainNoise, bigMoutainPalette_);
-
-//		float blend = (bigMountainNoise > 0) * (deformedRadius >= lvlSea_) * bigMountainNoise;
-
-
-
-//		sphereVertices_[9*i + 3] = (col.r * 0.4f + col3.r * 10.0f * blend) / (0.4f + 10.0f * blend);
-//		sphereVertices_[9*i + 4] = (col.g * 0.4f + col3.g * 10.0f * blend) / (0.4f + 10.0f * blend);
-//		sphereVertices_[9*i + 5] = (col.b * 0.4f + col3.b * 10.0f * blend) / (0.4f + 10.0f * blend);
-
-//		//sphereVertices_[9*i + 3] = col.r;
-//		//sphereVertices_[9*i + 4] = col.g;
-//		//sphereVertices_[9*i + 5] = col.b;
-
-//        sphereVertices_[9 * i + 0] = posX;
-//        sphereVertices_[9 * i + 1] = posY;
-//        sphereVertices_[9 * i + 2] = posZ;
-//        //sphereVertices_[9 * i + 3] = blend * 0.5f + 0.7f * 0.5f;
-//        //sphereVertices_[9 * i + 4] = blend * 0.5f + 0.8f * 0.5f;
-//        //sphereVertices_[9 * i + 5] = blend * 0.5f + 0.6f * 0.5f;
-
-//        // Initialisation normales à zéro
-//        sphereVertices_[9 * i + 6] = 0.f;
-//        sphereVertices_[9 * i + 7] = 0.f;
-//        sphereVertices_[9 * i + 8] = 0.f;
-//    }
-
-//    // Copie indices
-//    sphereIndices_.assign(indices_.begin(), indices_.end());
-
-//    // Calcul normales par accumulation pour chaque triangle
-//    std::vector<Vec3> normals(vertexCount, Vec3{0.f, 0.f, 0.f});
-//    for (size_t i = 0; i < sphereIndices_.size(); i += 3) {
-//        unsigned int i0 = sphereIndices_[i];
-//        unsigned int i1 = sphereIndices_[i + 1];
-//        unsigned int i2 = sphereIndices_[i + 2];
-
-//        Vec3 v0{
-//            sphereVertices_[9 * i0],
-//            sphereVertices_[9 * i0 + 1],
-//            sphereVertices_[9 * i0 + 2]
-//        };
-//        Vec3 v1{
-//            sphereVertices_[9 * i1],
-//            sphereVertices_[9 * i1 + 1],
-//            sphereVertices_[9 * i1 + 2]
-//        };
-//        Vec3 v2{
-//            sphereVertices_[9 * i2],
-//            sphereVertices_[9 * i2 + 1],
-//            sphereVertices_[9 * i2 + 2]
-//        };
-
-//        Vec3 edge1 = v1 - v0;
-//        Vec3 edge2 = v2 - v0;
-
-//        Vec3 normal{
-//            edge1.y * edge2.z - edge1.z * edge2.y,
-//            edge1.z * edge2.x - edge1.x * edge2.z,
-//            edge1.x * edge2.y - edge1.y * edge2.x
-//        };
-//        normal = normal.normalize();
-
-//        normals[i0] = normals[i0] + normal;
-//        normals[i1] = normals[i1] + normal;
-//        normals[i2] = normals[i2] + normal;
-//    }
-
-//    // Normalise normales finales
-//    for (size_t i = 0; i < vertexCount; ++i) {
-//        Vec3 n = normals[i].normalize();
-//        sphereVertices_[9 * i + 6] = n.x;
-//        sphereVertices_[9 * i + 7] = n.y;
-//        sphereVertices_[9 * i + 8] = n.z;
-//    }
-//}
-
-
 // Fonction smoothstep classique pour les interpolations lisses
 float smoothstep(float edge0, float edge1, float x) {
     float t = std::clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
@@ -331,13 +208,27 @@ void IcoSphere::generate() {
         float posZ = deformedRadius * v.z;
 
         // Température calculée depuis latitude et altitude
-        float latitude = std::acos(v.y) / M_PI;
+        // Calcul latitude et altitude
+        float latitude = (std::acos(v.y) / M_PI);
         float altitudeNormalized = (deformedRadius - radius_) / heightAmplitude_;
-        float temperature = std::clamp(1.0f - std::abs(latitude - 0.5f) * 2.0f - altitudeNormalized * 0.7f, 0.0f, 1.0f);
 
-        // Humidité via bruit décalé
-        float humidityNoise = fbmPerlinNoise(v.x + 100, v.y + 100, v.z + 100, biomeOctaves_, biomePersistence_, biomeNoiseScale_);
-        float humidity = (humidityNoise + 1.0f) * 0.5f;
+        // Base température selon latitude et altitude
+        float baseTemp = 1.0f - std::abs(latitude - 0.5f)*2.0f - altitudeNormalized * 0.7f;
+        baseTemp = std::clamp(baseTemp, 0.0f, 1.0f);
+
+        // Ajout bruit FBM multi-échelle (exemple)
+        float tempNoise1 = fbmPerlinNoise(v.x, v.y, v.z, 4, 0.9f, 2.0f);
+        float tempNoise2 = fbmPerlinNoise(v.x, v.y, v.z, 4, 0.9f, 60.0f);
+        float temperature = baseTemp + 0.3f * tempNoise1 + 0.15f * tempNoise2;
+        //temperature = std::clamp(temperature, 0.0f, 1.0f);
+
+        // Humidité multi-échelle avec décalages spatiaux
+        float humidityNoise1 = fbmPerlinNoise(v.x + 100, v.y + 100, v.z + 100, 4, 0.5f, 2.0f);
+        float humidityNoise2 = fbmPerlinNoise(v.x + 200, v.y + 200, v.z + 200, 4, 0.6f, 60.0f);
+        float humidity = 0.7f * humidityNoise1 + 0.3f * humidityNoise2;
+        humidity = (humidity + 1.0f) * 0.5f * 0.70f;
+        //humidity = std::clamp(humidity, 0.0f, 1.0f) / 2;
+
 
         // Indice biome
         int biomeIdx = getBiomeIndex(temperature, humidity, deformedRadius, lvlSea_);
@@ -361,50 +252,69 @@ void IcoSphere::generate() {
             default: palette = &forestPalette_; break; // fallback
         }
 
-        float weightBigMountain = smoothstep(0.0f, 0.2f, bigMountainNoise);
+        //float weightBigMountain = smoothstep(0.0f, 0.2f, bigMountainNoise);
 
         Color biomeColor = getColorFromNoise(BiomeNoise, *palette);
-        Color colBigMountain = getColorFromNoise(bigMountainNoise, bigMoutainPalette_);
+        //Color colBigMountain = getColorFromNoise(bigMountainNoise, bigMoutainPalette_);
 
-        float invBlend = 1.0f - weightBigMountain;
+        //float invBlend = 1.0f - weightBigMountain;
 
-        float r = biomeColor.r * invBlend + colBigMountain.r * weightBigMountain;
-        float g = biomeColor.g * invBlend + colBigMountain.g * weightBigMountain;
-        float b = biomeColor.b * invBlend + colBigMountain.b * weightBigMountain;
+        //float r = biomeColor.r * invBlend + colBigMountain.r * weightBigMountain;
+        //float g = biomeColor.g * invBlend + colBigMountain.g * weightBigMountain;
+        //float b = biomeColor.b * invBlend + colBigMountain.b * weightBigMountain;
 
-        sphereVertices_[9 * i + 3] = r;
-        sphereVertices_[9 * i + 4] = g;
-        sphereVertices_[9 * i + 5] = b;
-
-
-        //printf("ok");
-
-        // Récupère la couleur interpolée dans la palette sélectionnée
-        Color biomeColor = getColorFromNoise(BiomeNoise, *palette);
-
-        //Color colBiome = getColorFromNoise(BiomeNoise, biomePalette_); // ou sélectionner une palette par biomeIdx
-        //Color colMountain = getColorFromNoise(mountainNoise, mountainPalette_);
-        Color colBigMountain = getColorFromNoise(bigMountainNoise, bigMoutainPalette_);
-
-        //float blendWeight = weightBigMountain;
-        //float wBiome = 0.4f * (1.0f - blendWeight);
-        //float wBigMountain = 0.6f * blendWeight;
-
-        //float r = (colBiome.r * wBiome + colBigMountain.r * wBigMountain) / (wBiome + wBigMountain);
-        //float g = (colBiome.g * wBiome + colBigMountain.g * wBigMountain) / (wBiome + wBigMountain);
-        //float b = (colBiome.b * wBiome + colBigMountain.b * wBigMountain) / (wBiome + wBigMountain);
 
         float r = biomeColor.r;
         float g = biomeColor.g;
         float b = biomeColor.b;
 
+        //sphereVertices_[9 * i + 3] = r;
+        //sphereVertices_[9 * i + 4] = g;
+        //sphereVertices_[9 * i + 5] = b;
+
+
+        //printf("ok");
+
+        //// Récupère la couleur interpolée dans la palette sélectionnée
+        //Color biomeColor = getColorFromNoise(BiomeNoise, *palette);
+
+        ////Color colBiome = getColorFromNoise(BiomeNoise, biomePalette_); // ou sélectionner une palette par biomeIdx
+        ////Color colMountain = getColorFromNoise(mountainNoise, mountainPalette_);
+        //Color colBigMountain = getColorFromNoise(bigMountainNoise, bigMoutainPalette_);
+
+        ////float blendWeight = weightBigMountain;
+        ////float wBiome = 0.4f * (1.0f - blendWeight);
+        ////float wBigMountain = 0.6f * blendWeight;
+
+        ////float r = (colBiome.r * wBiome + colBigMountain.r * wBigMountain) / (wBiome + wBigMountain);
+        ////float g = (colBiome.g * wBiome + colBigMountain.g * wBigMountain) / (wBiome + wBigMountain);
+        ////float b = (colBiome.b * wBiome + colBigMountain.b * wBigMountain) / (wBiome + wBigMountain);
+
+        //float r = biomeColor.r;
+        //float g = biomeColor.g;
+        //float b = biomeColor.b;
+
         sphereVertices_[9 * i + 0] = posX;
         sphereVertices_[9 * i + 1] = posY;
         sphereVertices_[9 * i + 2] = posZ;
 
-        sphereVertices_[9 * i + 3] = r;
-        sphereVertices_[9 * i + 4] = g;
-        sphereVertices_[9 * i + 5] = b;
+        //float latitude = (std::acos(v.y) / M_PI);
+        // ... tes calculs temp, humidité, couleurs, etc.
+
+        const float equatorWidth = 0.01f;
+        float distanceToEquator = std::abs(latitude - 0.5f);
+
+        if (distanceToEquator < equatorWidth) {
+            // Couleur trait rouge équateur
+            sphereVertices_[9 * i + 3] = 1.0f;
+            sphereVertices_[9 * i + 4] = 0.0f;
+            sphereVertices_[9 * i + 5] = 0.0f;
+        } else {
+            // Couleur normale calculée (biomeColor par exemple)
+            sphereVertices_[9 * i + 3] = r;
+            sphereVertices_[9 * i + 4] = g;
+            sphereVertices_[9 * i + 5] = b;
+        }
 
         sphereVertices_[9 * i + 6] = 0.f; // normales
         sphereVertices_[9 * i + 7] = 0.f;
