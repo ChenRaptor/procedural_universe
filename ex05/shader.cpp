@@ -68,7 +68,7 @@ void main() {
     vec3 color = ambient + diffuse;
 
     if (vHeight < uLvlSea + 0.01) {
-        color = vec3(0.0, 0.0, 0.3 + 0.2 * (uLvlSea + 0.01 - vHeight) * 50.0);
+        color = vec3(0.0, 0.0, 0.4 - 0.2 * (uLvlSea + 0.01 - vHeight) * 50.0);
     }
 
     //FragColor = vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);

@@ -11,6 +11,4 @@ extern const char* fragmentShaderSrc;
 extern const char* vertexShaderSrc;
 extern const float LVLSEA;
 
-
-
 #endif

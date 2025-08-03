@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include <cstdint>
+#include "color.h"
 
 struct Vec3 {
     float x, y, z;
@@ -22,6 +23,10 @@ struct IcoSphereConfig {
     float continentPersistence;
     float continentNoiseScale;
 
+	unsigned int bigMountainOctaves;
+	float bigMountainPersistence;
+	float bigMountainNoiseScale;
+
     unsigned int mountainOctaves;
     float mountainPersistence;
     float mountainNoiseScale;
@@ -32,59 +37,118 @@ struct IcoSphereConfig {
     float biomePersistence;
     float biomeNoiseScale;
 
-    IcoSphereConfig()
-        : subdivisions(9), radius(1.0f), lvlSea(0.989f),
-          continentOctaves(5), continentPersistence(0.5f), continentNoiseScale(1.0f),
-          mountainOctaves(5), mountainPersistence(0.5f), mountainNoiseScale(2.0f),
-          heightAmplitude(0.02f),
-          biomeOctaves(5), biomePersistence(0.5f), biomeNoiseScale(1.0f)
-        {}
+	std::vector<ColorPoint> biomePalette; // Palette de couleurs pour les biomes
+	std::vector<ColorPoint> mountainPalette;
+	std::vector<ColorPoint> bigMountainPalette;
+	std::vector<ColorPoint> oceanPalette;
+	std::vector<ColorPoint> desertPalette;
+	std::vector<ColorPoint> forestPalette;
+	std::vector<ColorPoint> tundraPalette;
+	std::vector<ColorPoint> snowPalette;
+
+	IcoSphereConfig()
+		: subdivisions(9), radius(1.0f), lvlSea(0.995f),
+		  continentOctaves(3), continentPersistence(0.5f), continentNoiseScale(0.8f),
+		  mountainOctaves(8), mountainPersistence(0.9f), mountainNoiseScale(2.0f),
+		  bigMountainOctaves(8), bigMountainPersistence(0.7f), bigMountainNoiseScale(4.0f),
+		  heightAmplitude(0.05f),
+          oceanPalette({
+              {0.0f, HEX(0x000041)},
+              {1.0f, HEX(0x004080)}
+          }),
+          desertPalette({
+              {0.0f, HEX(0xC2B280)},
+              {0.5f, HEX(0xEEDC82)},
+              {1.0f, HEX(0xFFE4B5)}
+          }),
+          forestPalette({
+              {0.0f, HEX(0x05400A)},
+              {0.5f, HEX(0x2F4F2F)},
+              {1.0f, HEX(0x7CFC00)}
+          }),
+          tundraPalette({
+              {0.0f, HEX(0x9FA8A3)},
+              {1.0f, HEX(0xDCE3E1)}
+          }),
+          mountainPalette({
+              {0.0f, HEX(0x555555)},
+              {1.0f, HEX(0xDDDCDC)}
+          }),
+          snowPalette({
+              {0.0f, HEX(0xEEEEEE)},
+              {1.0f, HEX(0xFFFFFF)}
+          }),
+		  biomePalette({
+			{0.0f, HEX(0x000000)},  // Noir
+			{1.0f, HEX(0xf0ddc5)}   // Rouge
+		  }),
+			bigMountainPalette({
+			{0.0f, HEX(0XFFFFFF)},  // Vert moyen
+			{0.3f, HEX(0x999999)},  // Gris
+			{0.7f, HEX(0xCCCCCC)},  // Gris clair
+			{1.0f, HEX(0xFFFFFF)}   // Blanc
+		  }),
+		  biomeOctaves(3), biomePersistence(0.6f), biomeNoiseScale(60.f)
+		{}
 };
 
 
 class IcoSphere {
-public:
-    IcoSphere(int subdivisions, float radius, float heightAmplitude, float lvlSea, float mountainNoiseScale);
-    IcoSphere(const IcoSphereConfig& config);
-    ~IcoSphere();
+	public:
+		IcoSphere(int subdivisions, float radius, float heightAmplitude, float lvlSea, float mountainNoiseScale);
+		IcoSphere(const IcoSphereConfig& config);
+		~IcoSphere();
 
-    void generate();
+		void generate();
 
-    const std::vector<float>& getVertices() const { return sphereVertices_; }
-    const std::vector<unsigned int>& getIndices() const { return sphereIndices_; }
+		const std::vector<float>& getVertices() const { return sphereVertices_; }
+		const std::vector<unsigned int>& getIndices() const { return sphereIndices_; }
 
-private:
-    unsigned int subdivisions_;
-	float radius_;
-	float lvlSea_;
+	private:
+		unsigned int subdivisions_;
+		float radius_;
+		float lvlSea_;
 
-	unsigned int continentOctaves_;
-	float continentPersistence_;
-	float continentNoiseScale_;
+		unsigned int continentOctaves_;
+		float continentPersistence_;
+		float continentNoiseScale_;
 
-	unsigned int mountainOctaves_;
-	float mountainPersistence_;
-	float mountainNoiseScale_;
+		unsigned int bigMountainOctaves_;
+		float bigMountainPersistence_;
+		float bigMountainNoiseScale_;
 
-	float heightAmplitude_; // Amplitude de la hauteur des montagnes
+		unsigned int mountainOctaves_;
+		float mountainPersistence_;
+		float mountainNoiseScale_;
 
-	unsigned int biomeOctaves_;
-	float biomePersistence_;
-	float biomeNoiseScale_;
+		float heightAmplitude_; // Amplitude de la hauteur des montagnes
 
-	// Icosahedron vertices and indices
+		unsigned int biomeOctaves_;
+		float biomePersistence_;
+		float biomeNoiseScale_;
 
-    std::vector<Vec3> vertices_;
-    std::vector<unsigned int> indices_;
+		std::vector<ColorPoint> biomePalette_;
+		std::vector<ColorPoint> mountainPalette_;
+		std::vector<ColorPoint> bigMoutainPalette_;
+		std::vector<ColorPoint> oceanPalette_;
+		std::vector<ColorPoint> desertPalette_;
+		std::vector<ColorPoint> forestPalette_;
+		std::vector<ColorPoint> tundraPalette_;
+		std::vector<ColorPoint> snowPalette_;
 
-    std::unordered_map<uint64_t, unsigned int> middlePointCache_;
+		// Icosahedron vertices and indices
 
-    std::vector<float> sphereVertices_;       // position(3) + couleur(3) + normale(3)
-    std::vector<unsigned int> sphereIndices_;
+		std::vector<Vec3> vertices_;
+		std::vector<unsigned int> indices_;
 
-    unsigned int getMiddlePoint(unsigned int p1, unsigned int p2);
-    void initIcosahedron();
-    void subdivideTriangles();
+		std::unordered_map<uint64_t, unsigned int> middlePointCache_;
+
+		std::vector<float> sphereVertices_;       // position(3) + couleur(3) + normale(3)
+		std::vector<unsigned int> sphereIndices_;
+
+		unsigned int getMiddlePoint(unsigned int p1, unsigned int p2);
+		void initIcosahedron();
+		void subdivideTriangles();
 };
 
 #endif // ICOSPHERE_H

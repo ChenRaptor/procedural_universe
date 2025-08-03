@@ -8,16 +8,25 @@
 #include <GLES3/gl3.h>
 #include "main.h"
 #include "Icosphere.hpp"
+#include "color.h"
 #include <chrono>
 
-const float LVLSEA = 0; // Niveau de la mer
+const float LVLSEA = 0.989; // Niveau de la mer
 const int SUBDIVISION_ISO = 9;
-float radius = 2.0f;         // distance caméra <-> cible (zoom)
+float radius = 3.0f;         // distance caméra <-> cible (zoom)
 float cameraYaw = 0.0f;      // angle horizontal (azimut)
 float cameraPitch = 0.0f;    // angle vertical (élévation), limité pour éviter flip
 bool isDragging = false;
 double lastMouseX = 0;
 double lastMouseY = 0;
+
+std::vector<ColorPoint> biomeColors = {
+    {0.0f, {0.1f, 0.2f, 0.3f}},  // Couleur pour bruit = 0.0
+    {0.3f, {0.4f, 0.6f, 0.1f}},  // Couleur pour bruit = 0.3
+    {0.7f, {0.7f, 0.4f, 0.2f}},  // Couleur pour bruit = 0.7
+    {1.0f, {0.9f, 0.9f, 0.9f}}   // Couleur pour bruit = 1.0
+};
+
 
 EM_BOOL mouse_down_callback(int eventType, const EmscriptenMouseEvent* e, void* userData) {
     if (eventType == EMSCRIPTEN_EVENT_MOUSEDOWN) {
@@ -103,6 +112,9 @@ void init() {
 
     
     IcoSphereConfig cfg;
+    cfg.subdivisions = SUBDIVISION_ISO;
+    cfg.lvlSea = LVLSEA;
+    cfg.biomeNoiseScale = 5.f;
     auto start = std::chrono::high_resolution_clock::now();
     planet = new IcoSphere(cfg);
     planet->generate();
