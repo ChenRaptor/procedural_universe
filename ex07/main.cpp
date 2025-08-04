@@ -13,7 +13,7 @@
 
 const float LVLSEA = 0.998; // Niveau de la mer
 const int SUBDIVISION_ISO = 9;
-float radius = 3.0f;         // distance caméra <-> cible (zoom)
+float radius = 2.5f;         // distance caméra <-> cible (zoom)
 float cameraYaw = 0.0f;      // angle horizontal (azimut)
 float cameraPitch = 0.0f;    // angle vertical (élévation), limité pour éviter flip
 bool isDragging = false;
@@ -55,6 +55,7 @@ GLuint program, vao, vbo, ebo;
 
 // Emplacements des uniforms à stocker après récupération dans init()
 GLint uProjectionLoc = -1;
+GLint uModelLoc = -1;
 GLint uViewLoc = -1;
 GLint uAngleLoc = -1;
 GLint uLvlSeaLoc = -1;
@@ -136,6 +137,7 @@ void init() {
     glDeleteShader(frag);
 
     uProjectionLoc = glGetUniformLocation(program, "uProjection");
+    uModelLoc = glGetUniformLocation(program, "uModel");
     uViewLoc = glGetUniformLocation(program, "uView");
     uAngleLoc = glGetUniformLocation(program, "uAngle");
     uLvlSeaLoc = glGetUniformLocation(program, "uLvlSea");
@@ -163,55 +165,66 @@ void init() {
     glBindVertexArray(0);
 }
 
+void computeModelMatrix(float* matrix, float angleRadians) {
+    float c = cosf(angleRadians);
+    float s = sinf(angleRadians);
+
+    matrix[0]  = c;    matrix[4]  = 0.f; matrix[8]  = -s;   matrix[12] = 0.f;
+    matrix[1]  = 0.f;  matrix[5]  = 1.f; matrix[9]  = 0.f;  matrix[13] = 0.f;
+    matrix[2]  = s;    matrix[6]  = 0.f; matrix[10] = c;    matrix[14] = 0.f;
+    matrix[3]  = 0.f;  matrix[7]  = 0.f; matrix[11] = 0.f;   matrix[15] = 1.f;
+}
+
+void multiplyVectorByMatrix(const float mat[16], const float vec[4], float out[4]) {
+    for (int i = 0; i < 4; ++i) {
+        out[i] = mat[i] * vec[0] + mat[4 + i] * vec[1] + mat[8 + i] * vec[2] + mat[12 + i] * vec[3];
+    }
+}
+
+
 void render() {
     int width, height;
-    static float angle = 0.0f;
-    angle += 0.001f;
-
     emscripten_get_canvas_element_size("#canvas", &width, &height);
     glViewport(0, 0, width, height);
-
-    glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.2f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    static float angle = 0.f;
+    angle += 0.001f;
+
+    float model[16];
+    computeModelMatrix(model, angle);
+
     float view[16];
+    // Position caméra fixe
+    //float camPosX = 0.f, camPosY = 3.f, camPosZ = 1.f;
+
     float camPosX = radius * cosf(cameraPitch) * sinf(cameraYaw);
     float camPosY = radius * sinf(cameraPitch);
     float camPosZ = radius * cosf(cameraPitch) * cosf(cameraYaw);
-    float targetX = 0.0f;
-    float targetY = 0.0f;
-    float targetZ = 0.0f;
-    float campos2[3] = {camPosX, camPosY, camPosZ};
-    lookAt(view, camPosX, camPosY, camPosZ, targetX, targetY, targetZ, 0.0f, 1.0f, 0.0f);
+
+    lookAt(view, camPosX, camPosY, camPosZ, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
 
     float projection[16];
-    float aspect = (float)width / (float)height;
+    float aspect = (float)width / height;
     perspective(projection, 45.f, aspect, 0.1f, 100.f);
 
     glUseProgram(program);
-    float camPos[3] = {0.0f, 5.0f, 5.0f};
-    float target[3] = {0.0f, 0.0f, 0.0f};
-    float lightDir[3] = {
-        target[0] - camPos[0],
-        target[1] - camPos[1],
-        target[2] - camPos[2]
-    };
 
-    float len = sqrtf(lightDir[0]*lightDir[0] + lightDir[1]*lightDir[1] + lightDir[2]*lightDir[2]);
-    lightDir[0] /= len;
-    lightDir[1] /= len;
-    lightDir[2] /= len;
+    // Direction lumière pointant vers origine (même que caméra ici)
+    float lightDir[3] = {0.f, 0.f, 1.f};
 
     glUniform3fv(glGetUniformLocation(program, "uLightDir"), 1, lightDir);
-    glUniform3fv(glGetUniformLocation(program, "uCamPos"), 1, campos2);
-    glUniformMatrix4fv(uProjectionLoc, 1, GL_FALSE, projection);
+    glUniform3f(glGetUniformLocation(program, "uCamPos"), camPosX, camPosY, camPosZ);
+    glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, model);
     glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, view);
-    glUniform1f(uAngleLoc, angle);
+    glUniformMatrix4fv(uProjectionLoc, 1, GL_FALSE, projection);
     glUniform1f(uLvlSeaLoc, LVLSEA);
 
     glBindVertexArray(vao);
     glDrawElements(GL_TRIANGLES, (GLsizei)planet->getIndices().size(), GL_UNSIGNED_INT, 0);
 }
+
 
 
 int main() {

@@ -13,6 +13,7 @@ uniform mat4 uView;
 out float vHeight;
 out vec3 vColor;
 out vec3 vNormal;                        // <-- ajout
+out vec3 vFragPos;
 
 void main() {
     float c = cos(uAngle);
@@ -23,6 +24,7 @@ void main() {
     float y = pos.y;
     float z = -pos.x * s + pos.z * c;
     vec3 rotatedPos = vec3(x, y, z);
+    vFragPos = rotatedPos;
 
     gl_Position = uProjection * uView * vec4(rotatedPos, 1.0);
 
@@ -30,9 +32,9 @@ void main() {
     vColor = aColor;
 
     // Appliquer la même rotation sur la normale
-    float nx = aNormal.x * c - aNormal.y * s;
-    float ny = aNormal.x * s + aNormal.y * c;
-    float nz = aNormal.z;
+    float nx = aNormal.x * c - aNormal.z * s;
+    float ny = aNormal.y;
+    float nz = -aNormal.x * s + aNormal.z * c;
 
     vNormal = normalize(vec3(nx, ny, nz));
 
@@ -45,17 +47,15 @@ precision mediump float;
 
 uniform float uLvlSea;
 uniform vec3 uLightDir;  // direction lumière normalisée
+uniform vec3 uCamPos;   // position de la caméra
 
 in float vHeight;
 in vec3 vColor;
 in vec3 vNormal;
 out vec4 FragColor;
+in vec3 vFragPos;
 
 void main() {
-
-    // Seuils définissant les zones de hauteur (modifiable selon ta scène)
-    float mountainStart = 1.01;
-    float mountainPeak = 1.04;
 
     vec3 normal = normalize(vNormal);
     vec3 lightDir = normalize(uLightDir);
@@ -68,9 +68,16 @@ void main() {
 
     vec3 color = ambient + diffuse;
 
-    if (vHeight < uLvlSea + 0.01) {
-        color = vec3(0.0, 0.0, 0.4 - 0.2 * (uLvlSea + 0.01 - vHeight) * 50.0);
+    // Calcul du spéculaire simple (vue caméra = -position, à adapter)
+    vec3 fragToCamera = normalize(uCamPos - vFragPos);
+    vec3 reflectDir = reflect(-lightDir, normal);
+    float spec = pow(max(dot(fragToCamera, reflectDir), 0.0), 64.0);
+
+    // Amplifie le spéculaire pour l'océan
+    if (vHeight - uLvlSea <= 0.0001) {
+        color += vec3(spec) * 1.2;
     }
+
 
     //FragColor = vec4(normalize(vNormal) * 0.5 + 0.5, 1.0);
     FragColor = vec4(color, 1.0);

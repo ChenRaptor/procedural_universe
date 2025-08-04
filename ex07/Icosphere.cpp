@@ -207,6 +207,18 @@ void IcoSphere::generate() {
     for (size_t i = 0; i < vertexCount; ++i) {
         const Vec3& v = vertices_[i];
 
+        //sphereVertices_[9 * i + 0] = v.x;
+        //sphereVertices_[9 * i + 1] = v.y;
+        //sphereVertices_[9 * i + 2] = v.z;
+
+        //sphereVertices_[9 * i + 3] = 128;
+        //sphereVertices_[9 * i + 4] = 128;
+        //sphereVertices_[9 * i + 5] = 128;
+
+        //sphereVertices_[9 * i + 6] = 0.f;
+        //sphereVertices_[9 * i + 7] = 0.f;
+        //sphereVertices_[9 * i + 8] = 0.f;
+
         // Bruits pour altitude, montagnes, grandes montagnes, biomes
         float ContinentNoise = fbmPerlinNoise(v.x, v.y, v.z, continentOctaves_, continentPersistence_, continentNoiseScale_);
         float bigMountainNoise = fbmPerlinNoise(v.x, v.y, v.z, bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
