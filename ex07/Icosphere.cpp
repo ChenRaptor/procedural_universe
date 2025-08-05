@@ -231,18 +231,21 @@ void IcoSphere::generate() {
         sphereVertices_[9 * i + 7] = 0.f;
         sphereVertices_[9 * i + 8] = 0.f;
 
-        const float equatorWidth = 0.001f;
+        const float equatorWidth = 0.0001f;
         float latitude = (std::acos(v.y) / M_PI);
         float distanceToEquator = std::abs(latitude - 0.5f);
 
         if (deformedRadius == lvlSea_)
         {
-            float factor = (lvlSea_ + 0.01f - tempDeformedRadius) * 50.0f;
-            float blueValue = 0.4f - 0.2f * factor;
-            blueValue = std::clamp(blueValue, 0.0f, 1.0f);  // clamp pour sécurité
-            float r = 0.0f;
-            float g = 0.0f;
-            float b = blueValue;
+
+            Color oceaneColor = getColorFromNoise(((mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f)), oceanPalette_);
+            //0.998
+            //float factor = (lvlSea_ - tempDeformedRadius) * 500.0f;
+            //float blueValue = 0.4f - 0.2f * factor;
+            //blueValue = std::clamp(blueValue, 0.0f, 1.0f);  // clamp pour sécurité
+            float r = oceaneColor.r;
+            float g = oceaneColor.g;
+            float b = oceaneColor.b;
 
             if (isShowedEquator_ && distanceToEquator < equatorWidth) {
                 // Couleur trait rouge équateur

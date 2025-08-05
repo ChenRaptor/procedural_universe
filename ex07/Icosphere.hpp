@@ -54,8 +54,11 @@ struct IcoSphereConfig {
 		  bigMountainOctaves(8), bigMountainPersistence(0.7f), bigMountainNoiseScale(4.0f),
 		  heightAmplitude(0.05f),
           oceanPalette({
-              {0.0f, HEX(0x000041)},
-              {1.0f, HEX(0x004080)}
+				{-0.2f, HEX(0x000030)},
+              {-0.1f, HEX(0x000041)},
+			  {-0.005f, HEX(0x35698C)},
+              {0.0f, HEX(0x40E0D0)}
+			//  {0.0f, HEX(0xFF0000)},
           }),
           desertPalette({
               {0.0f, HEX(0xC2B280)},
