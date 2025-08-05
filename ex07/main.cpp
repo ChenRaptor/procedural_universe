@@ -118,7 +118,7 @@ void init() {
     cfg.biomeNoiseScale = 5.f;
     auto start = std::chrono::high_resolution_clock::now();
     planet = new IcoSphere(cfg);
-    //planet->setShowEquator(true);
+    planet->setShowEquator(true);
     planet->generate();
     auto end = std::chrono::high_resolution_clock::now();
 

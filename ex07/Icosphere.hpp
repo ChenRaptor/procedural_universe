@@ -45,6 +45,7 @@ struct IcoSphereConfig {
 	std::vector<ColorPoint> forestPalette;
 	std::vector<ColorPoint> tundraPalette;
 	std::vector<ColorPoint> snowPalette;
+	std::vector<ColorPoint> mountainColors; // Palette de couleurs pour les montagnes
 
 	IcoSphereConfig()
 		: subdivisions(9), radius(1.0f), lvlSea(0.995f),
@@ -62,9 +63,9 @@ struct IcoSphereConfig {
               {1.0f, HEX(0xFFE4B5)}
           }),
           forestPalette({
-              {0.0f, HEX(0x05400A)},
-              {0.5f, HEX(0x2F4F2F)},
-              {1.0f, HEX(0x7CFC00)}
+              {-1.0f, HEX(0x05400A)},
+              {0.0f, HEX(0x527048)},
+				{1.0f, HEX(0x7CFC00)},
           }),
           tundraPalette({
               {0.0f, HEX(0x9FA8A3)},
@@ -87,6 +88,21 @@ struct IcoSphereConfig {
 			{0.3f, HEX(0x999999)},  // Gris
 			{0.7f, HEX(0xCCCCCC)},  // Gris clair
 			{1.0f, HEX(0xFFFFFF)}   // Blanc
+		  }),
+		  mountainColors({
+			//{-1.0f, HEX(0x000000)},  // Gris foncé
+			//{-0.2f, HEX(0x000000)},  // Gris
+			//{0.0f, HEX(0x000000)},   // Gris
+			{0.0f, HEX(0x000000)},
+			{0.01f, HEX(0x222222)},
+			{0.05f, HEX(0x333333)},
+			{0.09f, HEX(0x666666)},
+			{0.1f, HEX(0x777777)},
+			//{0.15f, HEX(0x8c8c9c)},   // Gris
+			//{0.11f, HEX(0x8c8c9c)},  // Gris
+			//{0.2f, HEX(0x8c8c9c)},  // Gris
+			{0.9f, HEX(0x8c8c9c)},
+			//{1.0f, HEX(0xFFFFFF)}   // Blanc
 		  }),
 		  biomeOctaves(3), biomePersistence(0.6f), biomeNoiseScale(60.f)
 		{}
@@ -136,6 +152,7 @@ class IcoSphere {
 		std::vector<ColorPoint> forestPalette_;
 		std::vector<ColorPoint> tundraPalette_;
 		std::vector<ColorPoint> snowPalette_;
+		std::vector<ColorPoint> mountainColors_; // Palette de couleurs pour les montagnes
 
 		bool isShowedEquator_ = false; // Indique si l'équateur doit être affiché
 

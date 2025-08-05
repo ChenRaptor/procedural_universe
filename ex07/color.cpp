@@ -11,7 +11,15 @@ Color lerp(const Color& c1, const Color& c2, float t) {
     };
 }
 
-// Fonction qui, donné un niveau de bruit, renvoie la couleur interpolée
+/**
+ * 
+ * Fonction qui, donné un niveau de bruit, renvoie la couleur interpolée
+ * @param noiseValue Valeur de bruit normalisée entre 0 et 1.
+ * @param palette Palette de couleurs définie par des points clés.
+ * 
+ * @return Couleur interpolée correspondant à la valeur de bruit.
+ * 
+ */
 Color getColorFromNoise(float noiseValue, const std::vector<ColorPoint>& palette) {
     if (palette.empty()) return {0,0,0};
     // Clamp bruit aux bornes

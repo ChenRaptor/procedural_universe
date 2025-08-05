@@ -53,16 +53,16 @@ void main() {
     // Calcul du facteur spéculaire (exposant shininess = 64 par exemple)
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64.0);
 
-    vec3 ambient = 0.3 * vColor;
+    vec3 ambient = 0.01 * vColor;
     vec3 diffuse = diff * vColor;
     vec3 specular = vec3(spec); // vous pouvez multiplier par la couleur ou intensité de la lumière
 
     vec3 color = ambient + diffuse;
     if (vHeight - uLvlSea <= 0.0001) {
-        color += specular;
+        color += specular * 0.4;
     }
     else {
-        color += specular * 0.4; // Couleur normale si pas dans l'eau
+        color += specular * 0.05; // Couleur normale si pas dans l'eau
     }
     
     // Pour debug, afficher uniquement diffuse

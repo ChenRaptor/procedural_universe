@@ -81,7 +81,15 @@ float PerlinNoise3D(float x, float y, float z) {
     return res;
 }
 
-
+/**
+ * Fonction de bruit fractal (FBM) utilisant le bruit de Perlin 3D.
+ * @param x, y, z Coordonnées dans l'espace 3D.
+ * @param octaves Nombre d'octaves pour le bruit fractal.
+ * @param persistence Facteur de persistance pour l'amplitude des octaves.
+ * @param scale Facteur d'échelle pour la fréquence du bruit.
+ * 
+ * @return Valeur de bruit normalisée entre -1 et 1.
+ */
 float fbmPerlinNoise(float x, float y, float z, int octaves, float persistence, float scale) {
     float total = 0.0f;
     float frequency = scale;

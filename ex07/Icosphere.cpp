@@ -43,10 +43,8 @@ IcoSphere::IcoSphere(const IcoSphereConfig& config)
         desertPalette_(config.desertPalette),
         forestPalette_(config.forestPalette),
         tundraPalette_(config.tundraPalette),
-        snowPalette_(config.snowPalette)
-
-
-
+        snowPalette_(config.snowPalette),
+        mountainColors_(config.mountainColors)
 
 {
     // Initialise autres membres au besoin
@@ -207,18 +205,6 @@ void IcoSphere::generate() {
     for (size_t i = 0; i < vertexCount; ++i) {
         const Vec3& v = vertices_[i];
 
-        //sphereVertices_[9 * i + 0] = v.x;
-        //sphereVertices_[9 * i + 1] = v.y;
-        //sphereVertices_[9 * i + 2] = v.z;
-
-        //sphereVertices_[9 * i + 3] = 128;
-        //sphereVertices_[9 * i + 4] = 128;
-        //sphereVertices_[9 * i + 5] = 128;
-
-        //sphereVertices_[9 * i + 6] = 0.f;
-        //sphereVertices_[9 * i + 7] = 0.f;
-        //sphereVertices_[9 * i + 8] = 0.f;
-
         // Bruits pour altitude, montagnes, grandes montagnes, biomes
         float ContinentNoise = fbmPerlinNoise(v.x, v.y, v.z, continentOctaves_, continentPersistence_, continentNoiseScale_);
         float bigMountainNoise = fbmPerlinNoise(v.x, v.y, v.z, bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
@@ -290,11 +276,56 @@ void IcoSphere::generate() {
             default: palette = &forestPalette_; break;
         }
 
-        Color biomeColor = getColorFromNoise(BiomeNoise, *palette);
+        //Color biomeColor = getColorFromNoise(BiomeNoise, *palette);
 
-        float r = biomeColor.r;
-        float g = biomeColor.g;
-        float b = biomeColor.b;
+        //float r = biomeColor.r;
+        //float g = biomeColor.g;
+        //float b = biomeColor.b;
+
+
+        // facteur entre 0 et 1 selon l'altitude (0 = niveau mer, 1 = sommet haut)
+        //float factor = std::clamp((altitudeNormalized - lvlSea_) / (1.0f - lvlSea_), 0.0f, 1.0f);
+        //float maxAlt = radius_ + heightAmplitude_;
+        //float minAlt = radius_ - heightAmplitude_;
+
+        //float factor = tempDeformedRadius - radius_ / heightAmplitude_;
+        //float factor = (mountainNoise * bigMountainNoise * 0.6f + ContinentNoise * 0.4f);
+
+
+
+        //// tu peux assombrir ou éclaircir ta couleur de biome
+        Color biomeColor = getColorFromNoise(BiomeNoise, *palette);
+        //float r = biomeColor.r * 0.5f + 0.5f * factor; // Ajustement de la couleur selon le facteur
+        //float g = biomeColor.g * 0.5f + 0.5f * factor;
+        //float b = biomeColor.b * 0.5f + 0.5f * factor;
+
+
+        float factor = (mountainNoise * bigMountainNoise * 1.0f);
+        Color mountainColor = getColorFromNoise(factor, mountainColors_);
+        // Étaler la distribution des valeurs (tanh, sigmoid, exp, au choix)
+        //float factorNonLin = tanhf(8.0f * factor); // pousse plus vite vers +1/-1
+
+        // Utilise ce factor modifié pour la couleur :
+        float factorNonLin = tanhf(20.0f * factor);
+        float absFactor = std::abs(factorNonLin);
+
+        // Limitez absFactor entre 0 et 1 avec un contrôle doux sur la montée (exponentiel ou puissance)
+        //float weight = pow(absFactor, 2.0f); // 1.1f pour une montée un peu plus rapide que linéaire
+
+        // Limite le poids à 1 max
+        //if (weight > 1.0f) weight = 1.0f;
+
+        //float r = biomeColor.r * 0.5f + 0.5f * mountainColor.r;
+        //float g = biomeColor.g * 0.5f + 0.5f * mountainColor.g;
+        //float b = biomeColor.b * 0.5f + 0.5f * mountainColor.b;
+
+        float r = biomeColor.r * (0.5f - absFactor / 2) + mountainColor.r * (0.5f + absFactor / 2);
+        float g = biomeColor.g * (0.5f - absFactor / 2) + mountainColor.g * (0.5f + absFactor / 2);
+        float b = biomeColor.b * (0.5f - absFactor / 2) + mountainColor.b * (0.5f + absFactor / 2);
+
+        sphereVertices_[9 * i + 3] = r;
+        sphereVertices_[9 * i + 4] = g;
+        sphereVertices_[9 * i + 5] = b;
 
         if (isShowedEquator_ && distanceToEquator < equatorWidth) {
             // Couleur trait rouge équateur
