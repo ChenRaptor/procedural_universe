@@ -14,7 +14,7 @@ struct Vec3 {
     Vec3 normalize() const;
 };
 
-struct IcoSphereConfig {
+struct PlanetConfig {
     unsigned int subdivisions;
     float radius;
     float lvlSea;
@@ -46,7 +46,7 @@ struct IcoSphereConfig {
 	std::vector<ColorPoint> tundraPalette;
 	std::vector<ColorPoint> snowPalette;
 
-	IcoSphereConfig()
+	PlanetConfig()
 		: subdivisions(9), radius(1.0f), lvlSea(0.995f),
 		  continentOctaves(3), continentPersistence(0.5f), continentNoiseScale(0.8f),
 		  mountainOctaves(8), mountainPersistence(0.9f), mountainNoiseScale(2.0f),
@@ -96,7 +96,7 @@ struct IcoSphereConfig {
 class IcoSphere {
 	public:
 		IcoSphere(int subdivisions, float radius, float heightAmplitude, float lvlSea, float mountainNoiseScale);
-		IcoSphere(const IcoSphereConfig& config);
+		IcoSphere(const PlanetConfig& config);
 		~IcoSphere();
 
 		void generate();

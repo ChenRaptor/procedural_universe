@@ -17,7 +17,7 @@ IcoSphere::IcoSphere(int subdivisions, float radius, float heightAmplitude, floa
     : subdivisions_(subdivisions), radius_(radius), heightAmplitude_(heightAmplitude), lvlSea_(lvlSea), mountainNoiseScale_(mountainNoiseScale)
 {}
 
-IcoSphere::IcoSphere(const IcoSphereConfig& config)
+IcoSphere::IcoSphere(const PlanetConfig& config)
     : subdivisions_(config.subdivisions),
       radius_(config.radius),
       lvlSea_(config.lvlSea),

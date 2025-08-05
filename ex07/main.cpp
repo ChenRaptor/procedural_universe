@@ -112,7 +112,7 @@ void init() {
     initPermutation();
 
     
-    IcoSphereConfig cfg;
+    PlanetConfig cfg;
     cfg.subdivisions = SUBDIVISION_ISO;
     cfg.lvlSea = LVLSEA;
     cfg.biomeNoiseScale = 5.f;

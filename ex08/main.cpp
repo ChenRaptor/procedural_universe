@@ -7,13 +7,15 @@
 #include <emscripten/html5.h>
 #include <GLES3/gl3.h>
 #include "main.h"
-#include "Icosphere.hpp"
+#include "IcoSphere.hpp"
+#include "Planet.hpp"
 #include "color.h"
 #include <chrono>
+#include "Shader.hpp"
 
 const float LVLSEA = 0.998; // Niveau de la mer
 const int SUBDIVISION_ISO = 9;
-float radius = 3.0f;         // distance caméra <-> cible (zoom)
+float radius = 2.8f;         // distance caméra <-> cible (zoom)
 float cameraYaw = 0.0f;      // angle horizontal (azimut)
 float cameraPitch = 0.0f;    // angle vertical (élévation), limité pour éviter flip
 bool isDragging = false;
@@ -51,10 +53,11 @@ EM_BOOL mouse_move_callback(int eventType, const EmscriptenMouseEvent* e, void* 
     return true;
 }
 
-GLuint program, vao, vbo, ebo;
+GLuint vao, vbo, ebo, atmosphereVao;
 
 // Emplacements des uniforms à stocker après récupération dans init()
 GLint uProjectionLoc = -1;
+GLint uModelLoc = -1;
 GLint uViewLoc = -1;
 GLint uAngleLoc = -1;
 GLint uLvlSeaLoc = -1;
@@ -92,7 +95,9 @@ void init_webgl_context() {
     glEnable(GL_DEPTH_TEST);  // Activer test de profondeur APRES contexte actif
 }
 
-IcoSphere* planet = nullptr;
+Planet* planet = nullptr;
+Shader* planetShader = nullptr;
+Shader* atmosphereShader = nullptr;
 
 void init() {
     init_webgl_context();
@@ -110,109 +115,89 @@ void init() {
 
     initPermutation();
 
-    
     PlanetConfig cfg;
     cfg.subdivisions = SUBDIVISION_ISO;
     cfg.lvlSea = LVLSEA;
     cfg.biomeNoiseScale = 5.f;
     auto start = std::chrono::high_resolution_clock::now();
-    planet = new IcoSphere(cfg);
-    //planet->setShowEquator(true);
+    planet = new Planet(cfg);
+    planet->setShowEquator(true);
     planet->generate();
     auto end = std::chrono::high_resolution_clock::now();
 
     std::chrono::duration<double> elapsed = end - start;
     printf("Temps de génération de l'icosphère : %.6f secondes\n", elapsed.count());
 
-    GLuint vert = compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
-    GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
+    planetShader = new Shader(vertexShaderSrc, fragmentShaderSrc);
+    //atmosphereShader = new Shader(atmosphereVertexShaderSrc, atmosphereFragmentShaderSrc);
 
-    program = glCreateProgram();
-    glAttachShader(program, vert);
-    glAttachShader(program, frag);
-    glLinkProgram(program);
+    uProjectionLoc  = glGetUniformLocation(planetShader->ID, "uProjection");
+    uModelLoc       = glGetUniformLocation(planetShader->ID, "uModel");
+    uViewLoc        = glGetUniformLocation(planetShader->ID, "uView");
+    uAngleLoc       = glGetUniformLocation(planetShader->ID, "uAngle");
+    uLvlSeaLoc      = glGetUniformLocation(planetShader->ID, "uLvlSea");
 
-    glDeleteShader(vert);
-    glDeleteShader(frag);
-
-    uProjectionLoc = glGetUniformLocation(program, "uProjection");
-    uViewLoc = glGetUniformLocation(program, "uView");
-    uAngleLoc = glGetUniformLocation(program, "uAngle");
-    uLvlSeaLoc = glGetUniformLocation(program, "uLvlSea");
-
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    glGenBuffers(1, &vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, planet->getVertices().size() * sizeof(float), planet->getVertices().data(), GL_STATIC_DRAW);
-
-    glGenBuffers(1, &ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, planet->getIndices().size() * sizeof(unsigned int), planet->getIndices().data(), GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
-
-    glBindVertexArray(0);
+    planet->prepare_render();
 }
+
+void computeModelMatrix(float* matrix, float angleRadians) {
+    float c = cosf(angleRadians);
+    float s = sinf(angleRadians);
+
+    matrix[0]  = c;    matrix[4]  = 0.f; matrix[8]  = -s;   matrix[12] = 0.f;
+    matrix[1]  = 0.f;  matrix[5]  = 1.f; matrix[9]  = 0.f;  matrix[13] = 0.f;
+    matrix[2]  = s;    matrix[6]  = 0.f; matrix[10] = c;    matrix[14] = 0.f;
+    matrix[3]  = 0.f;  matrix[7]  = 0.f; matrix[11] = 0.f;   matrix[15] = 1.f;
+}
+
+void multiplyVectorByMatrix(const float mat[16], const float vec[4], float out[4]) {
+    for (int i = 0; i < 4; ++i) {
+        out[i] = mat[i] * vec[0] + mat[4 + i] * vec[1] + mat[8 + i] * vec[2] + mat[12 + i] * vec[3];
+    }
+}
+
 
 void render() {
     int width, height;
-    static float angle = 0.0f;
-    angle += 0.001f;
-
     emscripten_get_canvas_element_size("#canvas", &width, &height);
     glViewport(0, 0, width, height);
-
-    glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.2f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+    static float angle = 0.f;
+    angle += 0.001f;
+
+    float model[16];
+    computeModelMatrix(model, angle);
+
     float view[16];
+    // Position caméra fixe
+    //float camPosX = 0.f, camPosY = 3.f, camPosZ = 1.f;
+
     float camPosX = radius * cosf(cameraPitch) * sinf(cameraYaw);
     float camPosY = radius * sinf(cameraPitch);
     float camPosZ = radius * cosf(cameraPitch) * cosf(cameraYaw);
-    float targetX = 0.0f;
-    float targetY = 0.0f;
-    float targetZ = 0.0f;
-    float campos2[3] = {camPosX, camPosY, camPosZ};
-    lookAt(view, camPosX, camPosY, camPosZ, targetX, targetY, targetZ, 0.0f, 1.0f, 0.0f);
+
+    lookAt(view, camPosX, camPosY, camPosZ, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
 
     float projection[16];
-    float aspect = (float)width / (float)height;
+    float aspect = (float)width / height;
     perspective(projection, 45.f, aspect, 0.1f, 100.f);
 
-    glUseProgram(program);
-    float camPos[3] = {0.0f, 5.0f, 5.0f};
-    float target[3] = {0.0f, 0.0f, 0.0f};
-    float lightDir[3] = {
-        target[0] - camPos[0],
-        target[1] - camPos[1],
-        target[2] - camPos[2]
-    };
+    planetShader->use();
 
-    float len = sqrtf(lightDir[0]*lightDir[0] + lightDir[1]*lightDir[1] + lightDir[2]*lightDir[2]);
-    lightDir[0] /= len;
-    lightDir[1] /= len;
-    lightDir[2] /= len;
+    // Direction lumière pointant vers origine (même que caméra ici)
+    float lightDir[3] = {0.f, 0.f, 1.f};
 
-    glUniform3fv(glGetUniformLocation(program, "uLightDir"), 1, lightDir);
-    glUniform3fv(glGetUniformLocation(program, "uCamPos"), 1, campos2);
-    glUniformMatrix4fv(uProjectionLoc, 1, GL_FALSE, projection);
+    glUniform3fv(glGetUniformLocation(planetShader->ID, "uLightDir"), 1, lightDir);
+    glUniform3f(glGetUniformLocation(planetShader->ID, "uCamPos"), camPosX, camPosY, camPosZ);
+    glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, model);
     glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, view);
-    glUniform1f(uAngleLoc, angle);
+    glUniformMatrix4fv(uProjectionLoc, 1, GL_FALSE, projection);
     glUniform1f(uLvlSeaLoc, LVLSEA);
 
-    glBindVertexArray(vao);
-    glDrawElements(GL_TRIANGLES, (GLsizei)planet->getIndices().size(), GL_UNSIGNED_INT, 0);
+    planet->render();
 }
-
 
 int main() {
     init();
