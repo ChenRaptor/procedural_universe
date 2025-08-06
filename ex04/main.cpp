@@ -8,7 +8,7 @@
 #include <GLES3/gl3.h>
 
 // Shaders GLSL ES 3.0
-const char* vertexShaderSrc = R"(#version 300 es
+const char* vertexShaderPlanet = R"(#version 300 es
 precision mediump float;
 
 layout(location = 0) in vec3 aPos;
@@ -48,7 +48,7 @@ void main() {
 }
 )";
 
-const char* fragmentShaderSrc = R"(#version 300 es
+const char* fragmentShaderPlanet = R"(#version 300 es
 precision mediump float;
 
 uniform float uLvlSea;
@@ -506,8 +506,8 @@ void init() {
     // Génère une icosphère subdivisée (par exemple 3 subdivisions ~ 642 sommets)
     generateIcosphereWithNoise(SUBDIVISION_ISO);
 
-    GLuint vert = compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
-    GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
+    GLuint vert = compileShader(GL_VERTEX_SHADER, vertexShaderPlanet);
+    GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragmentShaderPlanet);
 
     program = glCreateProgram();
     glAttachShader(program, vert);

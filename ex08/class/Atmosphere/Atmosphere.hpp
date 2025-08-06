@@ -23,4 +23,7 @@ class Atmosphere {
 
 };
 
+extern const char* vertexShaderAtmosphere;
+extern const char* fragmentShaderAtmosphere;
+
 #endif

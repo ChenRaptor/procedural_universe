@@ -124,8 +124,8 @@ void init() {
     std::chrono::duration<double> elapsed = end - start;
     printf("Temps de génération de l'icosphère : %.6f secondes\n", elapsed.count());
 
-    GLuint vert = compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
-    GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
+    GLuint vert = compileShader(GL_VERTEX_SHADER, vertexShaderPlanet);
+    GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragmentShaderPlanet);
 
     program = glCreateProgram();
     glAttachShader(program, vert);

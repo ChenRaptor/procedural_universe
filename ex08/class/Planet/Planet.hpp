@@ -107,6 +107,7 @@ class Planet {
 		const std::vector<float>& getVertices() const { return _sphereVertices; }
 		const std::vector<unsigned int>& getIndices() const { return _sphereIndices; }
 		void setShowEquator(bool show) { isShowedEquator_ = show; }
+		Atmosphere* getAtmosphere() const { return _atmosphere; }
 	private:
 		unsigned int subdivisions_;
 		float radius_;
@@ -153,5 +154,8 @@ class Planet {
 		GLuint _ebo = 0;
 		bool _buffersInitialized = false;
 };
+
+extern const char* fragmentShaderPlanet;
+extern const char* vertexShaderPlanet;
 
 #endif

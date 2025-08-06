@@ -23,13 +23,13 @@ void Atmosphere::generate() {
     for (size_t i = 0; i < vertexCount; ++i) {
         const Vec3& v = _wireframeSphere->vertices[i];
 
-        _sphereVertices[9 * i + 0] = 1.1 * v.x;
-        _sphereVertices[9 * i + 1] = 1.1 * v.y;
-        _sphereVertices[9 * i + 2] = 1.1 * v.z;
+        _sphereVertices[9 * i + 0] = 1.2 * v.x;
+        _sphereVertices[9 * i + 1] = 1.2 * v.y;
+        _sphereVertices[9 * i + 2] = 1.2 * v.z;
 
-        _sphereVertices[9 * i + 3] = 128;
-        _sphereVertices[9 * i + 4] = 128;
-        _sphereVertices[9 * i + 5] = 128;
+        _sphereVertices[9 * i + 3] = 0.5f;
+        _sphereVertices[9 * i + 4] = 0.5f;
+        _sphereVertices[9 * i + 5] = 0.5f;
 
         _sphereVertices[9 * i + 6] = 0.f;
         _sphereVertices[9 * i + 7] = 0.f;

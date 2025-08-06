@@ -4,7 +4,7 @@
 #include <cstdio>
 
 // Shaders GLSL ES 3.0
-const char* vertexShaderSrc = R"(#version 300 es
+const char* vertexShaderPlanet = R"(#version 300 es
 precision mediump float;
 
 layout(location = 0) in vec3 aPos;
@@ -41,7 +41,7 @@ void main() {
 //    gl_Position = uProjection * uView * vec4(aPos, 1.0);
 //}
 
-const char* fragmentShaderSrc = R"(#version 300 es
+const char* fragmentShaderPlanet = R"(#version 300 es
 precision mediump float;
 in vec3 vColor;
 out vec4 FragColor;
@@ -154,8 +154,8 @@ void lookAt(float m[16],
 
 void init() {
     init_webgl_context();
-    GLuint vert = compileShader(GL_VERTEX_SHADER, vertexShaderSrc);
-    GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
+    GLuint vert = compileShader(GL_VERTEX_SHADER, vertexShaderPlanet);
+    GLuint frag = compileShader(GL_FRAGMENT_SHADER, fragmentShaderPlanet);
 
     program = glCreateProgram();
     glAttachShader(program, vert);

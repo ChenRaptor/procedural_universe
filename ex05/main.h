@@ -7,8 +7,8 @@ void initPermutation();
 void lookAt(float m[16], float eyeX, float eyeY, float eyeZ, float centerX, float centerY, float centerZ, float upX, float upY, float upZ);
 void perspective(float* m, float fovy, float aspect, float near, float far);
 
-extern const char* fragmentShaderSrc;
-extern const char* vertexShaderSrc;
+extern const char* fragmentShaderPlanet;
+extern const char* vertexShaderPlanet;
 extern const float LVLSEA;
 
 #endif

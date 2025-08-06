@@ -2,7 +2,7 @@
 EMCC = emcc
 
 # Fichiers sources
-SOURCES = main.cpp perlin_noise.cpp shader.cpp lookAt.cpp class/IcoSphere/IcoSphere.cpp color.cpp  class/Planet/Planet.cpp class/Atmosphere/Atmosphere.cpp
+SOURCES = main.cpp perlin_noise.cpp lookAt.cpp class/IcoSphere/IcoSphere.cpp color.cpp  class/Planet/Planet.cpp class/Planet/shader.cpp class/Atmosphere/Atmosphere.cpp class/Atmosphere/shader.cpp
 
 # Nom de la sortie
 OUTPUT = triangle.js

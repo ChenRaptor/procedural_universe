@@ -61,6 +61,10 @@ GLint uModelLoc = -1;
 GLint uViewLoc = -1;
 GLint uAngleLoc = -1;
 GLint uLvlSeaLoc = -1;
+GLint uProjectionLoc2 = -1;
+GLint uModelLoc2 = -1;
+GLint uViewLoc2 = -1;
+GLint uTimeLoc = -1;
 
 // Fonction pour compiler un shader
 GLuint compileShader(GLenum type, const char* src) {
@@ -128,14 +132,19 @@ void init() {
     std::chrono::duration<double> elapsed = end - start;
     printf("Temps de génération de l'icosphère : %.6f secondes\n", elapsed.count());
 
-    planetShader = new Shader(vertexShaderSrc, fragmentShaderSrc);
-    //atmosphereShader = new Shader(atmosphereVertexShaderSrc, atmosphereFragmentShaderSrc);
+    planetShader = new Shader(vertexShaderPlanet, fragmentShaderPlanet);
+    atmosphereShader = new Shader(vertexShaderAtmosphere, fragmentShaderAtmosphere);
 
     uProjectionLoc  = glGetUniformLocation(planetShader->ID, "uProjection");
     uModelLoc       = glGetUniformLocation(planetShader->ID, "uModel");
     uViewLoc        = glGetUniformLocation(planetShader->ID, "uView");
     uAngleLoc       = glGetUniformLocation(planetShader->ID, "uAngle");
     uLvlSeaLoc      = glGetUniformLocation(planetShader->ID, "uLvlSea");
+
+    uProjectionLoc2  = glGetUniformLocation(atmosphereShader->ID, "uProjection");
+    uModelLoc2       = glGetUniformLocation(atmosphereShader->ID, "uModel");
+    uViewLoc2        = glGetUniformLocation(atmosphereShader->ID, "uView");
+    uTimeLoc        = glGetUniformLocation(atmosphereShader->ID, "uTime");
 
     planet->prepare_render();
 }
@@ -197,6 +206,27 @@ void render() {
     glUniform1f(uLvlSeaLoc, LVLSEA);
 
     planet->render();
+    
+
+    glEnable(GL_BLEND);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+    // désactive écriture dans le tampon de profondeur (sinon atmosphère pourrait être coupée)
+    glDepthMask(GL_FALSE);
+    atmosphereShader->use();
+
+    glUniform3f(glGetUniformLocation(atmosphereShader->ID, "uCamPos"), camPosX, camPosY, camPosZ);
+    glUniform1f(uTimeLoc, angle); // Utiliser l'angle pour animer l'atmosphère
+    glUniformMatrix4fv(uModelLoc2, 1, GL_FALSE, model);
+    glUniformMatrix4fv(uViewLoc2, 1, GL_FALSE, view);
+    glUniformMatrix4fv(uProjectionLoc2, 1, GL_FALSE, projection);
+
+    planet->getAtmosphere()->render();
+    glDepthMask(GL_TRUE);
+
+    glDisable(GL_BLEND);
 }
 
 int main() {
