@@ -240,7 +240,7 @@ void Planet::generate() {
         _sphereVertices[9 * i + 8] = n.z;
     }
 
-    _atmosphere = new Atmosphere(subdivisions_, radius_ * 1.05f, Color{0.0f, 0.0f, 1.0f});
+    _atmosphere = new Atmosphere(subdivisions_, radius_ * 1.05f, HEX(0xCCD0D2)); // Couleur bleu ciel
     _atmosphere->generate();
 }
 
