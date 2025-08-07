@@ -208,25 +208,25 @@ void render() {
     planet->render();
     
 
-    //glEnable(GL_BLEND);
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    //glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
     // désactive écriture dans le tampon de profondeur (sinon atmosphère pourrait être coupée)
-    //glDepthMask(GL_FALSE);
-    //atmosphereShader->use();
+    glDepthMask(GL_FALSE);
+    atmosphereShader->use();
 
-    //glUniform3f(glGetUniformLocation(atmosphereShader->ID, "uCamPos"), camPosX, camPosY, camPosZ);
-    //glUniform1f(uTimeLoc, angle); // Utiliser l'angle pour animer l'atmosphère
-    //glUniformMatrix4fv(uModelLoc2, 1, GL_FALSE, model);
-    //glUniformMatrix4fv(uViewLoc2, 1, GL_FALSE, view);
-    //glUniformMatrix4fv(uProjectionLoc2, 1, GL_FALSE, projection);
+    glUniform3f(glGetUniformLocation(atmosphereShader->ID, "uCamPos"), camPosX, camPosY, camPosZ);
+    glUniform1f(uTimeLoc, angle); // Utiliser l'angle pour animer l'atmosphère
+    glUniformMatrix4fv(uModelLoc2, 1, GL_FALSE, model);
+    glUniformMatrix4fv(uViewLoc2, 1, GL_FALSE, view);
+    glUniformMatrix4fv(uProjectionLoc2, 1, GL_FALSE, projection);
 
-    //planet->getAtmosphere()->render();
-    //glDepthMask(GL_TRUE);
+    planet->getAtmosphere()->render();
+    glDepthMask(GL_TRUE);
 
-    //glDisable(GL_BLEND);
+    glDisable(GL_BLEND);
 }
 
 int main() {
