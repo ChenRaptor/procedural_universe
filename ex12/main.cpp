@@ -21,6 +21,9 @@ float cameraPitch = 0.0f; // angle vertical (élévation), limité pour éviter 
 bool isDragging = false;
 double lastMouseX = 0;
 double lastMouseY = 0;
+static float angle = 0.f;
+float model[16];
+float view[16];
 
 std::vector<ColorPoint> biomeColors = {
     {0.0f, {0.1f, 0.2f, 0.3f}}, // Couleur pour bruit = 0.0
@@ -203,13 +206,13 @@ Planet *planet = nullptr;
 Shader *planetShader = nullptr;
 // Shader* atmosphereShader = nullptr;
 
-// Atmosphere* atmosphere = nullptr;
+ Atmosphere* atmosphere = nullptr;
+ double width, height;
 
 void init()
 {
     init_webgl_context();
 
-    double width, height;
     emscripten_get_element_css_size("#canvas", &width, &height);
     int dpr = (int)emscripten_get_device_pixel_ratio();
     int canvasWidth = (int)(width * dpr);
@@ -253,9 +256,9 @@ void init()
     uTimeLoc = glGetUniformLocation(programAccum, "uTime");
 
     planet->prepare_render();
-    // atmosphere = new Atmosphere(9, 1.2f, Color{1.0f, 0.0f, 0.0f});
-    // atmosphere->generate();
-    // atmosphere->prepare_render();
+     atmosphere = new Atmosphere(9, 1.2f, Color{1.0f, 0.0f, 0.0f});
+     atmosphere->generate();
+     atmosphere->prepare_render();
     create_oit_framebuffer(canvasWidth, canvasHeight);
 }
 
@@ -290,37 +293,30 @@ void multiplyVectorByMatrix(const float mat[16], const float vec[4], float out[4
     }
 }
 
-void render()
+void setup()
 {
-    int width, height;
-    emscripten_get_canvas_element_size("#canvas", &width, &height);
     glViewport(0, 0, width, height);
     glClearColor(0.1f, 0.1f, 0.2f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    static float angle = 0.f;
     angle += 0.001f;
-
-    float model[16];
     computeModelMatrix(model, angle);
+}
+
+
+void render()
+{
+    setup();
 
     float view[16];
-    // Position caméra fixe
-    // float camPosX = 0.f, camPosY = 3.f, camPosZ = 1.f;
-
     float camPosX = radius * cosf(cameraPitch) * sinf(cameraYaw);
     float camPosY = radius * sinf(cameraPitch);
     float camPosZ = radius * cosf(cameraPitch) * cosf(cameraYaw);
-
     lookAt(view, camPosX, camPosY, camPosZ, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
-
     float projection[16];
     float aspect = (float)width / height;
     perspective(projection, 45.f, aspect, 0.1f, 100.f);
-
     planetShader->use();
 
-    // Direction lumière pointant vers origine (même que caméra ici)
     float lightDir[3] = {0.f, 0.f, 1.f};
 
     glUniform3fv(glGetUniformLocation(planetShader->ID, "uLightDir"), 1, lightDir);
@@ -346,36 +342,29 @@ void render()
         GL_NEAREST           // filtrage
     );
 
-// PASS 1 : accumulation dans framebuffer
-glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-glClearBufferfv(GL_COLOR, 0, (const GLfloat[]){0, 0, 0, 0});
-glClearBufferfv(GL_COLOR, 1, (const GLfloat[]){1.0f}); // important reveal buffer à 1 !
+    // PASS 1 : accumulation dans framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glClearBufferfv(GL_COLOR, 0, (const GLfloat[]){0, 0, 0, 0});
+    glClearBufferfv(GL_COLOR, 1, (const GLfloat[]){1.0f}); // important reveal buffer à 1 !
 
-glEnable(GL_BLEND);
-glBlendFunc(GL_ONE, GL_ONE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
 
-// Test de profondeur activé pour lire mais pas écrire
-glEnable(GL_DEPTH_TEST);
-glDepthFunc(GL_LEQUAL); // Utilise la profondeur de la planète
-glDepthMask(GL_FALSE);
+    glDisable(GL_DEPTH_TEST);
 
-// Ajouter un offset de polygone pour pousser les fragments transparents vers l'arrière
+    glUseProgram(programAccum);
 
-glUseProgram(programAccum);
+    glUniform3f(glGetUniformLocation(programAccum, "uCamPos"), camPosX, camPosY, camPosZ);
+    glUniform1f(uTimeLoc, angle);
+    glUniformMatrix4fv(uModelLoc2, 1, GL_FALSE, model);
+    glUniformMatrix4fv(uViewLoc2, 1, GL_FALSE, view);
+    glUniformMatrix4fv(uProjectionLoc2, 1, GL_FALSE, projection);
 
-glUniform3f(glGetUniformLocation(programAccum, "uCamPos"), camPosX, camPosY, camPosZ);
-glUniform1f(uTimeLoc, angle); // Utiliser l'angle pour animer l'atmosphère
-glUniformMatrix4fv(uModelLoc2, 1, GL_FALSE, model);
-glUniformMatrix4fv(uViewLoc2, 1, GL_FALSE, view);
-glUniformMatrix4fv(uProjectionLoc2, 1, GL_FALSE, projection);
+    planet->getAtmosphere()->render();
 
-planet->getAtmosphere()->render();
-
-// Désactiver l'offset et restaurer les paramètres
-glDisable(GL_BLEND);
-glDepthMask(GL_TRUE);
-glDepthFunc(GL_LESS); // Rétablir la fonction de profondeur par défaut
-glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    // Désactiver l'offset et restaurer les paramètres
+    glDisable(GL_BLEND);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // PASS 2 : composition finale
     glUseProgram(programComposite);
@@ -389,6 +378,7 @@ glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
+    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
