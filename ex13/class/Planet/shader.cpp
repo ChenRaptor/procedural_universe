@@ -59,10 +59,10 @@ void main() {
 
     vec3 color = ambient + diffuse;
     if (vHeight - uLvlSea <= 0.0001) {
-        color += specular * 0.4;
+        //color += specular * 0.4;
     }
     else {
-        color += specular * 0.05; // Couleur normale si pas dans l'eau
+        //color += specular * 0.05; // Couleur normale si pas dans l'eau
     }
     
     // Pour debug, afficher uniquement diffuse

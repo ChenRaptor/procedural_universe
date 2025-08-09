@@ -8,7 +8,7 @@ layout(location = 2) in vec3 aNormal;
 uniform mat4 uModel;
 uniform mat4 uView;
 uniform mat4 uProjection;
-uniform vec3 uCameraPos;
+uniform vec3 uCamPos;
 
 out vec3 vPosWorld;   // position monde du fragment
 out vec4 vColor;
@@ -19,7 +19,7 @@ void main() {
     vPosWorld = worldPos.xyz;
     vNormal = normalize(mat3(uModel) * aNormal);
     vColor = vec4(aColor, 0.4); // Couleur RGBA
-    vViewDir = normalize(uCameraPos - worldPos.xyz);
+    vViewDir = uCamPos - worldPos.xyz;
     gl_Position = uProjection * uView * worldPos;
 }
 )";
@@ -34,6 +34,7 @@ in vec3 vViewDir;
 
 uniform vec3 uLightDir;
 uniform float uTime;
+uniform vec3 uCamPos;
 
 layout(location = 0) out vec4 outAccum;
 layout(location = 1) out float outReveal;
@@ -377,196 +378,24 @@ float fbm(vec3 pos, float scale, float persistence, int octaves) {
 }
 
 void main() {
-
-    //vec3 normal = normalize(vNormal);
-    //vec3 lightDir = normalize(uLightDir);
-    //vec3 viewDir = normalize(vViewDir);
-    //float diff = max(dot(normal, lightDir), 0.0); // Lumière ambiante minimum
-    
-    //// Génération des nuages
-    //float cloudDensity = cloudNoise(vPosWorld);
-    
-    //// Fonction de densité progressive
-    //float densityThreshold = 0.4;
-    //float alpha = 0.0;
-    
-    //if (cloudDensity > densityThreshold) {
-    //    float normalizedDensity = (cloudDensity - densityThreshold) / (1.0 - densityThreshold);
-        
-    //    // Courbe exponentielle pour la transition
-    //    alpha = pow(normalizedDensity, 0.4) * 0.99;
-        
-    //    // Variation d'alpha basée sur l'éclairage
-    //    alpha *= diff;
-    //}
-    
-    ////// Couleur des nuages
-    ////vec3 cloudColor = mix(vec3(0.6, 0.7, 0.9), vec3(1.0), diff); // Bleu-gris à blanc
-    ////cloudColor = mix(cloudColor, vColor.rgb, 0.3); // Mélange avec la couleur du vertex
-    
-    ////// Weight pour OIT
-    
-    //float weight = clamp(pow(min(1.0, alpha * 10.0) + 0.01, 3.0), 0.01, 1.0);
-    ////// Discard fragments trop transparents
-    //if (alpha < 0.10) {
-    //    discard;
-    //}
-
-    // Calcul du rim lighting (effet de bord)
-    //float rim = 1.0 - max(dot(viewDir, normal), 0.0);
-    //rim = pow(rim, 2.0); // Contrôle la largeur de l'aura
-    
-    //// Intensité selon l'éclairage
-    //float lightIntensity = max(dot(normal, lightDir), 0.0);
-    
-    //// Couleur atmosphérique (bleu Rayleigh)
-    //vec3 atmosphereColor = vec3(0.3, 0.6, 1.0);
-    
-    //// Alpha basé sur le rim et l'éclairage
-    //alpha = alpha * (rim * (1.0 - 0.7 * lightIntensity));
-
-    ////alpha = 1.0 - alpha; // Inverser alpha pour OIT
-
-    //outAccum = vec4(cloudColor * alpha, alpha) * weight;
-    //outAccum = vec4(cloudDensity, cloudDensity, cloudDensity, alpha) * weight;
-    //outReveal = (1.0 - alpha) * weight;
-
-
-    //    vec3 normal = normalize(vNormal);
-    //vec3 lightDir = normalize(uLightDir);
-    //vec3 viewDir = normalize(vViewDir);
-    //float diff = max(dot(normal, lightDir), 0.0);
-    
-    //// === NUAGES ===
-    //float cloudDensity = cloudNoise(vPosWorld);
-    //float densityThreshold = 0.4;
-    //float cloudAlpha = 0.0;
-    
-    //if (cloudDensity > densityThreshold) {
-    //    float normalizedDensity = (cloudDensity - densityThreshold) / (1.0 - densityThreshold);
-    //    cloudAlpha = pow(normalizedDensity, 0.7) * 1.0;
-    //    cloudAlpha *= mix(0.00, 1.0, diff);
-    //}
-    
-    //// === AURA ATMOSPHÉRIQUE ===
-    //float rim = 1.0 - max(dot(viewDir, normal), 0.0);
-    //rim = pow(rim, 2.0); // Contrôle la largeur de l'aura
-    
-    //float lightIntensity = max(dot(normal, lightDir), 0.0);
-    //float atmosphereAlpha = rim * 0.6 * (0.2 + 0.8 * lightIntensity);
-    
-    //// === COMBINAISON ===
-    //vec3 cloudColor = vec3(0.9, 0.95, 1.0);
-    //vec3 atmosphereColor = vec3(0.3, 0.6, 1.0);
-    
-    //// Mélanger nuages et atmosphère
-    //float totalAlpha = max(cloudAlpha, atmosphereAlpha);
-    //vec3 finalColor;
-    
-    //if (cloudAlpha > 0.1) {
-    //    // Zone avec nuages : mélanger couleurs
-    //    float mixFactor = cloudAlpha / (cloudAlpha + atmosphereAlpha + 0.001);
-    //    finalColor = mix(atmosphereColor, cloudColor, mixFactor);
-    //} else {
-    //    // Zone sans nuages : seulement atmosphère
-    //    finalColor = atmosphereColor;
-    //    totalAlpha = atmosphereAlpha;
-    //}
-    
-    //float weight = clamp(pow(min(1.0, totalAlpha * 10.0) + 0.01, 3.0), 0.01, 1.0);
-    
-    //if (totalAlpha < 0.01) {
-    //    discard;
-    //}
-    
-    //outAccum = vec4(finalColor, totalAlpha) * weight;
-    //outReveal = (1.0 - totalAlpha) * weight;
-
-
-    //vec3 normal = normalize(vNormal);
-    //vec3 lightDir = normalize(uLightDir);
-    //vec3 viewDir = normalize(vViewDir);
-    //float diff = max(dot(normal, lightDir), 0.0);
-    
-    //// === CALCUL DE L'ALTITUDE ===
-    //float planetRadius = 1.0; // Rayon de la planète (ajustez selon votre échelle)
-    //float currentRadius = length(vPosWorld); // Distance du centre
-    //float altitude = (currentRadius - planetRadius) / planetRadius; // Altitude normalisée
-    
-    //// Facteur d'atténuation atmosphérique (décroissance exponentielle)
-    //float atmosphereFalloff = exp(-altitude * 8.0); // Plus l'altitude est haute, plus c'est transparent
-    
-    //// === NUAGES ===
-    //float cloudDensity = cloudNoise(vPosWorld);
-    //float densityThreshold = 0.4;
-    //float cloudAlpha = 0.0;
-    
-    //if (cloudDensity > densityThreshold) {
-    //    float normalizedDensity = (cloudDensity - densityThreshold) / (1.0 - densityThreshold);
-    //    cloudAlpha = pow(normalizedDensity, 0.7) * 1.0;
-    //    cloudAlpha *= mix(0.00, 1.0, diff);
-        
-    //    // Appliquer l'atténuation atmosphérique aux nuages
-    //    cloudAlpha *= atmosphereFalloff;
-    //}
-    
-    //// === AURA ATMOSPHÉRIQUE ===
-    //float rim = 1.0 - max(dot(viewDir, normal), 0.0);
-    //rim = pow(rim, 2.0);
-    
-    //float lightIntensity = max(dot(normal, lightDir), 0.0);
-    //float atmosphereAlpha = rim * 0.6 * (0.2 + 0.8 * lightIntensity);
-    
-    //// Appliquer l'atténuation atmosphérique à l'aura
-    //atmosphereAlpha *= atmosphereFalloff;
-    
-    //// === COMBINAISON ===
-    //vec3 cloudColor = vec3(0.9, 0.95, 1.0);
-    //vec3 atmosphereColor = vec3(0.3, 0.6, 1.0);
-    
-    //// Mélanger nuages et atmosphère
-    //float totalAlpha = max(cloudAlpha, atmosphereAlpha);
-    //vec3 finalColor;
-    
-    //if (cloudAlpha > 0.1) {
-    //    // Zone avec nuages : mélanger couleurs
-    //    float mixFactor = cloudAlpha / (cloudAlpha + atmosphereAlpha + 0.001);
-    //    finalColor = mix(atmosphereColor, cloudColor, mixFactor);
-    //} else {
-    //    // Zone sans nuages : seulement atmosphère
-    //    finalColor = atmosphereColor;
-    //    totalAlpha = atmosphereAlpha;
-    //}
-    
-    //float weight = clamp(pow(min(1.0, totalAlpha * 10.0) + 0.01, 3.0), 0.01, 1.0);
-    
-    //if (totalAlpha < 0.01) {
-    //    discard;
-    //}
-    
-    //outAccum = vec4(finalColor, totalAlpha) * weight;
-    //outReveal = (1.0 - totalAlpha) * weight;
-
-
-
     vec3 normal = normalize(vNormal);
     vec3 lightDir = normalize(uLightDir);
-    vec3 viewDir = normalize(vViewDir);
+    vec3 viewDir = normalize(uCamPos - vPosWorld);
     float diff = max(dot(normal, lightDir), 0.0);
-    
+
     // === CALCUL SPÉCULAIRE ===
-    vec3 reflectDir = reflect(-lightDir, normal);
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 64.0); // 32 = shininess
-    
-    // Ou utiliser Blinn-Phong (souvent préféré)
+    //vec3 reflectDir = reflect(-lightDir, normal);
+    //float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32.0); // 32 = shininess
     vec3 halfwayDir = normalize(lightDir + viewDir);
-    float specBlinn = pow(max(dot(normal, halfwayDir), 0.0), 16.0);
+    float spec = pow(max(dot(normal, halfwayDir), 0.0), 32.0);
     
     // === CALCUL DE L'ALTITUDE ===
-    float planetRadius = 1.0;
-    float currentRadius = length(vPosWorld);
-    float altitude = (currentRadius - planetRadius) / planetRadius;
-    float atmosphereFalloff = exp(-altitude * 8.0);
+    float planetRadius = 1.0; // Rayon de la planète (ajustez selon votre échelle)
+    float currentRadius = length(vPosWorld); // Distance du centre
+    float altitude = (currentRadius - planetRadius) / planetRadius; // Altitude normalisée
+    
+    // Facteur d'atténuation atmosphérique (décroissance exponentielle)
+    float atmosphereFalloff = exp(-altitude * 8.0); // Plus l'altitude est haute, plus c'est transparent
     
     // === NUAGES ===
     float cloudDensity = cloudNoise(vPosWorld);
@@ -577,40 +406,49 @@ void main() {
         float normalizedDensity = (cloudDensity - densityThreshold) / (1.0 - densityThreshold);
         cloudAlpha = pow(normalizedDensity, 0.7) * 1.0;
         cloudAlpha *= mix(0.00, 1.0, diff);
+        
+        // Appliquer l'atténuation atmosphérique aux nuages
         cloudAlpha *= atmosphereFalloff;
     }
     
     // === AURA ATMOSPHÉRIQUE ===
-    float rim = 1.0 - max(dot(viewDir, normal), 0.0);
-    rim = pow(rim, 2.0);
+    //float rim = 1.0 - max(dot(viewDir, normal), 0.0);
+    //rim = pow(rim, 0.5);
     
     float lightIntensity = max(dot(normal, lightDir), 0.0);
-    float atmosphereAlpha = rim * 0.6 * (0.2 + 0.8 * lightIntensity);
+    float atmosphereAlpha = 0.6 * (0.2 + 0.8 * lightIntensity);
+    
+    // Appliquer l'atténuation atmosphérique à l'aura
     atmosphereAlpha *= atmosphereFalloff;
     
-    // === COULEURS AVEC SPÉCULAIRE ===
     vec3 cloudColor = vec3(0.9, 0.95, 1.0);
-    vec3 atmosphereColor = vec3(0.3, 0.6, 1.0);
+    vec3 atmosphereColor = vec3(0.8, 0.6, 1.0);
     
     // Ajouter spéculaire aux nuages (effet de brillance sur les gouttelettes)
-    vec3 specularColor = vec3(1.0, 1.0, 1.0) * specBlinn * 6.0;
-    cloudColor += specularColor;
+    //vec3 specularColor = vec3(1.0, 1.0, 1.0) * specBlinn * 0.3;
+    //cloudColor += specularColor;
     
     // Spéculaire atmosphérique plus subtil (diffusion)
-    vec3 atmosphereSpecular = vec3(0.8, 0.9, 1.0) * spec * 0.8;
-    atmosphereColor += atmosphereSpecular;
-    
+    vec3 atmosphereSpecular = vec3(spec);
+    //atmosphereColor += atmosphereSpecular;
+
     // === COMBINAISON ===
+    // Mélanger nuages et atmosphère
     float totalAlpha = max(cloudAlpha, atmosphereAlpha);
     vec3 finalColor;
     
     if (cloudAlpha > 0.1) {
+        // Zone avec nuages : mélanger couleurs
         float mixFactor = cloudAlpha / (cloudAlpha + atmosphereAlpha + 0.001);
         finalColor = mix(atmosphereColor, cloudColor, mixFactor);
     } else {
+        // Zone sans nuages : seulement atmosphère
         finalColor = atmosphereColor;
         totalAlpha = atmosphereAlpha;
     }
+
+    finalColor += atmosphereSpecular * 0.4;
+    totalAlpha += atmosphereSpecular.r * 0.1; // Ajouter un peu de transparence pour l'effet spéculaire
     
     float weight = clamp(pow(min(1.0, totalAlpha * 10.0) + 0.01, 3.0), 0.01, 1.0);
     
