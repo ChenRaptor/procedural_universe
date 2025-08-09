@@ -245,7 +245,7 @@ Planet& Planet::generate() {
         _sphereVertices[9 * i + 8] = n.z;
     }
 
-    _atmosphere = new Atmosphere(subdivisions_, radius_ * 1.05f, HEX(0xCCD0D2)); // Couleur bleu ciel
+    _atmosphere = new Atmosphere(subdivisions_, radius_ * 1.019f, HEX(0xCCD0D2)); // Couleur bleu ciel
     _atmosphere->generate();
     if (_debug)
     {

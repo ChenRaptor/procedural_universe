@@ -28,16 +28,13 @@ void main() {
     vec4 accum = texture(uAccumTex, vUV);
     float reveal = texture(uRevealTex, vUV).r;
 
-    FragColor = vec4(accum.rgb, 1.0);
+    //FragColor = vec4(accum.rgb, 1.0);
     
-    //if (reveal <= 0.001) {
-    //    // Opacité totale : utilise directement accum avec alpha = 1
-    //    FragColor = vec4(accum.rgb, 1.0);
-    //} else if (reveal > 0.0) {
-    //    // Zone transparente : formule OIT normale
-    //    FragColor = vec4(accum.rgb / reveal, 1.0 - reveal);
-    //} else {
-    //    FragColor = vec4(0.0);
-    //}
+    if (reveal > 0.0) {
+        // Zone transparente : formule OIT normale
+        FragColor = vec4(accum.rgb / reveal, 1.0 - reveal);
+    } else {
+        FragColor = vec4(0.0);
+    }
 }
 )";

@@ -13,6 +13,11 @@
 #include <chrono>
 #include "Shader.hpp"
 
+
+#include "glm/glm/glm.hpp" // Types de base (vec3, mat4, etc.)
+#include "glm/glm/gtc/matrix_transform.hpp" // Transformations (lookAt, perspective, etc.)
+#include "glm/glm/gtc/type_ptr.hpp" // Conversion glm::mat4 en pointeur pour OpenGL
+
 const float LVLSEA = 0.998; // Niveau de la mer
 const int SUBDIVISION_ISO = 9;
 float radius = 2.8f;      // distance caméra <-> cible (zoom)
@@ -22,9 +27,6 @@ bool isDragging = false;
 double lastMouseX = 0;
 double lastMouseY = 0;
 static float angle = 0.f;
-float model[16];
-float view[16];
-
 EM_BOOL mouse_down_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
 {
     if (eventType == EMSCRIPTEN_EVENT_MOUSEDOWN)
@@ -62,10 +64,10 @@ void getUniformLocations(GLuint programID, const std::vector<std::string>& unifo
 }
 
 // Fonction utilitaire pour configurer une matrice uniforme
-void setMatrixUniform(GLint location, const float* matrix) {
-    if (location != -1) {
-        glUniformMatrix4fv(location, 1, GL_FALSE, matrix);
-    }
+void setMatrixUniform(GLint location, const glm::mat4& matrix) {
+	if (location != -1) {
+		glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(matrix));
+	}
 }
 
 // Fonction utilitaire pour configurer un vecteur uniforme
@@ -156,13 +158,22 @@ void init_webgl_context()
         exit(1);
     }
     emscripten_webgl_make_context_current(ctx);
+    const char* version = (const char*)glGetString(GL_VERSION);
+    const char* glsl_version = (const char*)glGetString(GL_SHADING_LANGUAGE_VERSION);
+    printf("OpenGL version: %s\n", version);
+    printf("GLSL version: %s\n", glsl_version);
     glEnable(GL_DEPTH_TEST); // Activer test de profondeur APRES contexte actif
+	glCullFace(GL_BACK);  // Éliminer les faces arrière
+	glEnable(GL_CULL_FACE);
 }
 
 Planet *planet = nullptr;
 Shader *planetShader = nullptr;
 Shader *programAccum = nullptr;
 Shader* programComposite = nullptr;
+
+std::map<std::string, GLint> planetUniformLocations;
+std::map<std::string, GLint> accumUniformLocations;
 
 double width, height;
 
@@ -190,59 +201,30 @@ void init()
     planet = &(new Planet(cfg))->generate();
     planet->prepare_render();
 
-    planetShader = new Shader(vertexShaderPlanet, fragmentShaderPlanet);
-    programAccum = new Shader(vertexShaderAtmosphere, fragmentShaderAtmosphere);
-    programComposite = new Shader(vertexShaderQuad, fragmentShaderComposite);
+    planetShader		= new Shader(vertexShaderPlanet, fragmentShaderPlanet);
+    programAccum		= new Shader(vertexShaderAtmosphere, fragmentShaderAtmosphere);
+    programComposite	= new Shader(vertexShaderQuad, fragmentShaderComposite);
 
-    uProjectionLoc = glGetUniformLocation(planetShader->ID, "uProjection");
-    uModelLoc = glGetUniformLocation(planetShader->ID, "uModel");
-    uViewLoc = glGetUniformLocation(planetShader->ID, "uView");
-    uAngleLoc = glGetUniformLocation(planetShader->ID, "uAngle");
-    uLvlSeaLoc = glGetUniformLocation(planetShader->ID, "uLvlSea");
-
-
-    //std::vector<std::string> planetUniforms = {"uProjection", "uModel", "uView", "uAngle", "uLvlSea"};
-    //std::map<std::string, GLint> planetUniformLocations;
-    //getUniformLocations(planetShader->ID, planetUniforms, planetUniformLocations);
-
-    uProjectionLoc2 = glGetUniformLocation(programAccum->ID, "uProjection");
-    uModelLoc2 = glGetUniformLocation(programAccum->ID, "uModel");
-    uViewLoc2 = glGetUniformLocation(programAccum->ID, "uView");
-    uTimeLoc = glGetUniformLocation(programAccum->ID, "uTime");
-
-        // Récupération des emplacements des uniformes pour planetShader
-    std::vector<std::string> planetUniforms = {"uProjection", "uModel", "uView", "uAngle", "uLvlSea"};
-    std::map<std::string, GLint> planetUniformLocations;
-    getUniformLocations(planetShader->ID, planetUniforms, planetUniformLocations);
+    // Récupération des emplacements des uniformes pour planetShader
+    getUniformLocations(planetShader->ID, {"uProjection", "uModel", "uView", "uAngle", "uLvlSea", "uLightDir", "uCamPos"}, planetUniformLocations);
 
     // Récupération des emplacements des uniformes pour programAccum
-    std::vector<std::string> accumUniforms = {"uProjection", "uModel", "uView", "uTime"};
-    std::map<std::string, GLint> accumUniformLocations;
-    getUniformLocations(programAccum->ID, accumUniforms, accumUniformLocations);
+    getUniformLocations(programAccum->ID, {"uProjection", "uModel", "uView", "uTime", "uCamPos", "uLightDir"}, accumUniformLocations);
 
 }
 
-void computeModelMatrix(float *matrix, float angleRadians)
+glm::mat4 computeModelMatrix(float angleRadians)
 {
     float c = cosf(angleRadians);
     float s = sinf(angleRadians);
 
-    matrix[0] = c;
-    matrix[4] = 0.f;
-    matrix[8] = -s;
-    matrix[12] = 0.f;
-    matrix[1] = 0.f;
-    matrix[5] = 1.f;
-    matrix[9] = 0.f;
-    matrix[13] = 0.f;
-    matrix[2] = s;
-    matrix[6] = 0.f;
-    matrix[10] = c;
-    matrix[14] = 0.f;
-    matrix[3] = 0.f;
-    matrix[7] = 0.f;
-    matrix[11] = 0.f;
-    matrix[15] = 1.f;
+    glm::mat4 model = glm::mat4(1.0f); // Matrice identité
+    model[0][0] = c;
+    model[0][2] = -s;
+    model[2][0] = s;
+    model[2][2] = c;
+
+    return model;
 }
 
 void multiplyVectorByMatrix(const float mat[16], const float vec[4], float out[4])
@@ -258,8 +240,7 @@ void setup()
     glViewport(0, 0, width, height);
     glClearColor(0.1f, 0.1f, 0.2f, 1.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    angle += 0.001f;
-    computeModelMatrix(model, angle);
+    angle += 0.0001f;
 }
 
 
@@ -267,26 +248,31 @@ void render()
 {
     setup();
 
-    float view[16];
+    //float view[16];
     float camPosX = radius * cosf(cameraPitch) * sinf(cameraYaw);
     float camPosY = radius * sinf(cameraPitch);
     float camPosZ = radius * cosf(cameraPitch) * cosf(cameraYaw);
-    lookAt(view, camPosX, camPosY, camPosZ, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f);
-    float projection[16];
+
+	glm::vec3 cameraPosition(camPosX, camPosY, camPosZ);
+	glm::vec3 target(0.f, 0.f, 0.f);
+	glm::vec3 up(0.f, 1.f, 0.f);
+	glm::mat4 view = glm::lookAt(cameraPosition, target, up);
+
+
     float aspect = (float)width / height;
-    perspective(projection, 45.f, aspect, 0.1f, 100.f);
+	glm::mat4 projection = glm::perspective(glm::radians(45.f), aspect, 0.1f, 100.f);
+
+	glm::mat4 model = computeModelMatrix(angle);
+	glm::vec3 lightDir(0.f, 0.f, 1.f);
+
     planetShader->use();
+    glUniform3fv(planetUniformLocations["uLightDir"]		, 1, glm::value_ptr(lightDir)				);
+    glUniform3fv(planetUniformLocations["uCamPos"]			, 1, glm::value_ptr(cameraPosition)			);
+    glUniformMatrix4fv(planetUniformLocations["uProjection"], 1, GL_FALSE, glm::value_ptr(projection)	);
+    glUniformMatrix4fv(planetUniformLocations["uModel"]		, 1, GL_FALSE, glm::value_ptr(model)		);
+    glUniformMatrix4fv(planetUniformLocations["uView"]		, 1, GL_FALSE, glm::value_ptr(view)			);
+    glUniform1f(planetUniformLocations["uLvlSea"]			, LVLSEA									);
 
-    float lightDir[3] = {0.f, 0.f, 1.f};
-
-    glUniform3fv(glGetUniformLocation(planetShader->ID, "uLightDir"), 1, lightDir);
-    glUniform3f(glGetUniformLocation(planetShader->ID, "uCamPos"), camPosX, camPosY, camPosZ);
-    glUniformMatrix4fv(uModelLoc, 1, GL_FALSE, model);
-    glUniformMatrix4fv(uViewLoc, 1, GL_FALSE, view);
-    glUniformMatrix4fv(uProjectionLoc, 1, GL_FALSE, projection);
-    glUniform1f(uLvlSeaLoc, LVLSEA);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);  // Éliminer les faces arrière
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
 
@@ -307,23 +293,16 @@ void render()
     glClearBufferfv(GL_COLOR, 0, (const GLfloat[]){0, 0, 0, 0});
     glClearBufferfv(GL_COLOR, 1, (const GLfloat[]){1.0f}); // important reveal buffer à 1 !
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE);
-
     glDisable(GL_DEPTH_TEST);
-
     glUseProgram(programAccum->ID);
+    glUniform3fv(accumUniformLocations["uLightDir"]		    , 1, glm::value_ptr(lightDir)				);
+    glUniform3fv(accumUniformLocations["uCamPos"]			, 1, glm::value_ptr(cameraPosition)			);
+    glUniformMatrix4fv(accumUniformLocations["uProjection"]	, 1, GL_FALSE, glm::value_ptr(projection)	);
+    glUniformMatrix4fv(accumUniformLocations["uModel"]		, 1, GL_FALSE, glm::value_ptr(model)		);
+    glUniformMatrix4fv(accumUniformLocations["uView"]		, 1, GL_FALSE, glm::value_ptr(view)			);
+    glUniform1f(accumUniformLocations["uTime"]				, angle										);
+    planet->getAtmosphere()->render();
 
-    glUniform3f(glGetUniformLocation(programAccum->ID, "uCamPos"), camPosX, camPosY, camPosZ);
-    glUniform1f(uTimeLoc, angle);
-    glUniformMatrix4fv(uModelLoc2, 1, GL_FALSE, model);
-    glUniformMatrix4fv(uViewLoc2, 1, GL_FALSE, view);
-    glUniformMatrix4fv(uProjectionLoc2, 1, GL_FALSE, projection);
-
-    //planet->getAtmosphere()->render();
-
-    // Désactiver l'offset et restaurer les paramètres
-    glDisable(GL_BLEND);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // PASS 2 : composition finale
@@ -337,8 +316,8 @@ void render()
     glUniform1i(glGetUniformLocation(programComposite->ID, "uRevealTex"), 1);
 
     glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE);
-    //glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //glBlendFunc(GL_ONE, GL_ONE);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
