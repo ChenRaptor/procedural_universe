@@ -11,6 +11,7 @@
 #include "Planet.hpp"
 #include "color.h"
 #include <chrono>
+#include <algorithm> // pour std::max, std::min
 #include "Shader.hpp"
 
 
@@ -20,13 +21,17 @@
 
 const float LVLSEA = 0.998; // Niveau de la mer
 const int SUBDIVISION_ISO = 9;
-float radius = 2.8f;      // distance caméra <-> cible (zoom)
+float radius = 3.0f;      // distance caméra <-> cible (zoom)
 float cameraYaw = 0.0f;   // angle horizontal (azimut)
 float cameraPitch = 0.0f; // angle vertical (élévation), limité pour éviter flip
 bool isDragging = false;
 double lastMouseX = 0;
 double lastMouseY = 0;
 static float angle = 0.f;
+
+float targetRadius = 2.8f;
+float zoomSmoothness = 0.1f;
+
 EM_BOOL mouse_down_callback(int eventType, const EmscriptenMouseEvent *e, void *userData)
 {
     if (eventType == EMSCRIPTEN_EVENT_MOUSEDOWN)
@@ -55,6 +60,42 @@ EM_BOOL mouse_move_callback(int eventType, const EmscriptenMouseEvent *e, void *
     }
     return true;
 }
+
+//EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent *e, void *userData)
+//{
+//    if (eventType == EMSCRIPTEN_EVENT_WHEEL)
+//    {
+//        // Détecter si Ctrl est pressé pour un zoom plus fin
+//        float zoomSpeed = e->mouse.ctrlKey ? 0.05f : 0.2f;
+        
+//        // Zoom logarithmique pour plus de naturel
+//        float factor = e->deltaY > 0 ? 1.1f : 0.9f;
+//        radius *= factor;
+        
+//        // Limites dynamiques
+//        radius = std::max(1.2f, std::min(radius, 20.0f));
+        
+//        printf("Zoom: %.2f\n", radius);
+//        return EM_TRUE;
+//    }
+//    return EM_FALSE;
+//}
+
+EM_BOOL wheel_callback(int eventType, const EmscriptenWheelEvent *e, void *userData)
+{
+    if (eventType == EMSCRIPTEN_EVENT_WHEEL)
+    {
+        float zoomSpeed = 0.02f;
+        radius += e->deltaY * zoomSpeed;
+        
+        // Limiter directement
+        radius = std::max(3.0f, radius);
+        
+        return EM_TRUE;
+    }
+    return EM_FALSE;
+}
+
 
 // Fonction utilitaire pour récupérer les emplacements des uniformes
 void getUniformLocations(GLuint programID, const std::vector<std::string>& uniformNames, std::map<std::string, GLint>& uniformMap) {
@@ -191,6 +232,7 @@ void init()
     emscripten_set_mousedown_callback("#canvas", nullptr, true, mouse_down_callback);
     emscripten_set_mouseup_callback("#canvas", nullptr, true, mouse_down_callback);
     emscripten_set_mousemove_callback("#canvas", nullptr, true, mouse_move_callback);
+    emscripten_set_wheel_callback("#canvas", nullptr, true, wheel_callback);
 
     initPermutation();
 
@@ -199,7 +241,8 @@ void init()
     cfg.lvlSea = LVLSEA;
     cfg.biomeNoiseScale = 5.f;
     planet = &(new Planet(cfg))->generate();
-    planet->prepare_render();
+    //planet->prepare_render();
+    planet->setLODSelected(9); // Sélectionner LOD 0 par défaut
 
     planetShader		= new Shader(vertexShaderPlanet, fragmentShaderPlanet);
     programAccum		= new Shader(vertexShaderAtmosphere, fragmentShaderAtmosphere);
@@ -248,7 +291,13 @@ void render()
 {
     setup();
 
+    //radius += (targetRadius - radius) * zoomSmoothness;
     //float view[16];
+
+    if (radius > 10.0f)
+        planet->setLODSelected(7);
+    //if (radius > 15.0f)
+    //    planet->setLODSelected(6);
     float camPosX = radius * cosf(cameraPitch) * sinf(cameraYaw);
     float camPosY = radius * sinf(cameraPitch);
     float camPosZ = radius * cosf(cameraPitch) * cosf(cameraYaw);

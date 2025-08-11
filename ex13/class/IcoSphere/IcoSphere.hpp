@@ -12,6 +12,10 @@ struct Vec3 {
     Vec3 operator-(const Vec3& b) const;
     Vec3 operator*(float f) const;
     Vec3 normalize() const;
+
+    float length() const {
+        return std::sqrt(x * x + y * y + z * z);
+    }
 };
 
 class IcoSphere {

@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <map>
 #include <cstdint>
 #include "color.h"
 #include "IcoSphere.hpp"
@@ -110,8 +111,12 @@ class Planet {
 		const std::vector<float>& getVertices() const { return _sphereVertices; }
 		const std::vector<unsigned int>& getIndices() const { return _sphereIndices; }
 		void setShowEquator(bool show) { isShowedEquator_ = show; }
+		void generateAllLODs();
+		void setLODSelected(unsigned int lod);
 		Atmosphere* getAtmosphere() const { return _atmosphere; }
 	private:
+		std::map<int, IcoSphere*> lodLevels;
+		
 		unsigned int subdivisions_;
 		float radius_;
 		float lvlSea_;
@@ -157,6 +162,8 @@ class Planet {
 		GLuint _ebo = 0;
 		bool _buffersInitialized = false;
 		bool _debug;
+
+		unsigned int 			_LODSelected;
 };
 
 extern const char* fragmentShaderPlanet;

@@ -245,8 +245,8 @@ Planet& Planet::generate() {
         _sphereVertices[9 * i + 8] = n.z;
     }
 
-    _atmosphere = new Atmosphere(subdivisions_, radius_ * 1.019f, HEX(0xCCD0D2)); // Couleur bleu ciel
-    _atmosphere->generate();
+    _atmosphere = new Atmosphere(subdivisions_ - 5, radius_ * 1.019f, HEX(0xCCD0D2)); // Couleur bleu ciel
+    _atmosphere->generateAllLODs();
     if (_debug)
     {
         auto end = std::chrono::high_resolution_clock::now();
@@ -290,8 +290,25 @@ void Planet::prepare_render() {
         _buffersInitialized = true;
     }
     if (_atmosphere) {
+        printf("Planet LOD selected: %u\n", _LODSelected - 5);
+        _atmosphere->setLODSelected(_LODSelected - 5);
         _atmosphere->prepare_render();
     }
+}
+
+void Planet::setLODSelected(unsigned int lod) {
+    if (_LODSelected == lod)
+        return;
+    //if (lod < 3) {
+    //    printf("LOD must be at least 3, got %u\n", lod);
+    //    return;
+    //}
+    if (lod >= 10) {
+        printf("Invalid LOD selected: %u, max is %d\n", lod, 9);
+        return;
+    }
+    _LODSelected = lod;
+    prepare_render();
 }
 
 void Planet::render() {

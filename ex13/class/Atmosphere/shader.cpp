@@ -231,47 +231,6 @@ float fbmWorley(vec3 p, int octaves) {
     return value;
 }
 
-// === CLOUD GENERATION ===
-//float cloudNoise(vec3 pos) {
-
-//    float angle = uTime * 0.1; // Plus lent
-//    mat3 rotation = mat3(
-//        cos(angle), -sin(angle), 0.0,
-//        sin(angle), cos(angle), 0.0,
-//        0.0, 0.0, 1.0
-//    );
-//    vec3 rotatedPos = rotation * pos;
-
-//    //vec3 animPos = pos + vec3(uTime * 0.8, uTime * 0.4, uTime * 0.60);
-    
-//    // AJOUTER animation temporelle du bruit pour l'évolution
-//    vec3 timeOffset = vec3(uTime * 0.2, uTime * 0.15, uTime * 0.1);
-    
-//    // Base cloud shape avec animation temporelle
-//    float baseNoise = fbmPerlin(rotatedPos * 4.0 + timeOffset, 8);
-    
-//    // Détails avec animation à vitesse différente
-//    vec3 timeOffset2 = vec3(uTime * 0.3, uTime * 0.2, uTime * 0.25);
-//    float worleyNoise = fbmWorley(rotatedPos * 8.0 + timeOffset2, 6);
-//    float worleyInv = 1.0 - worleyNoise;
-    
-//    // Détails fins avec animation rapide
-//    vec3 timeOffset3 = vec3(uTime * 0.5, uTime * 0.4, uTime * 0.3);
-//    float detailNoise = simplex(rotatedPos * 32.0 + timeOffset3) * 0.25;
-    
-//    // Combinaison pour structure nuageuse réaliste
-//    //float cloudShape = baseNoise * 0.6 + worleyInv * 0.4;
-//    float cloudShape = baseNoise * 0.6 + worleyInv * 0.3 + detailNoise * 0.1;
-//    //cloudShape += detailNoise;
-    
-//    // Érosion des bords pour des nuages plus naturels
-//    //float erosion = smoothstep(0.2, 0.3, worleyInv);
-//    //cloudShape *= erosion;
-    
-//    //return clamp(cloudShape, 0.0, 1.0);
-//    return cloudShape;
-//}
-
 float cloudNoise(vec3 pos) {
     float angle = uTime * 0.1;
     mat3 rotation = mat3(
