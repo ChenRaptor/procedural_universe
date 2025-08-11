@@ -14,10 +14,16 @@ Atmosphere::~Atmosphere() {}
 void Atmosphere::generate(unsigned int subdivision) {
     static std::unique_ptr<KDTree3D> kdTreeMax;
 
+    if (subdivision > _max_subdivisions) {
+        printf("Atmosphere: Invalid subdivision %u, max is %u\n", subdivision, _max_subdivisions);
+        return;
+    }
+
     if (_LODLevels[subdivision].sphereVertices.size() > 0)
         return;
 
     if (!_LODMaxsolid) {
+        printf("Atmosphere: Generating max subdivision solid for LOD %u\n", _max_subdivisions);
         _LODMaxsolid = new IcoSphere();
         _LODMaxsolid->generate(_max_subdivisions);
 
@@ -27,6 +33,7 @@ void Atmosphere::generate(unsigned int subdivision) {
         for (const auto& v : _LODMaxsolid->vertices)
             pointsMax.push_back({v.x, v.y, v.z});
         kdTreeMax.reset(new KDTree3D(pointsMax));
+        //kdTreeMax.reset(new FastSpatialLookup(pointsMax, 0.05f));
 
         // Calculer valeurs Perlin max subdivision multi-octave
         _LODMaxVertices.resize(pointsMax.size());
@@ -113,15 +120,20 @@ void Atmosphere::generate(unsigned int subdivision) {
 }
 
 void Atmosphere::generateAllLODs() {
-    for (unsigned int i = 0; i <= _max_subdivisions; ++i) {
-        generate(i);
-    }
+    //for (unsigned int i = 0; i <= _max_subdivisions; ++i) {
+    //    generate(i);
+    //}
+    //for (unsigned int i = _max_subdivisions; i > 0; ++i) {
+    //    generate(i);
+    //}
+
+    generate(4);
+    generate(3);
+    generate(2);
+    generate(1);
 }
 
 void Atmosphere::prepare_render() {
-    // Générer buffers OpenGL
-    printf("OKAST: Preparing render for Atmosphere LOD %u\n", _LODSelected);
-
     if (_vao != 0) {
         glDeleteVertexArrays(1, &_vao);
         glDeleteBuffers(1, &_vbo);
@@ -158,15 +170,12 @@ void Atmosphere::prepare_render() {
 void Atmosphere::setLODSelected(unsigned int lod) {
     if (_LODSelected == lod)
         return;
-    if (lod < 3) {
-        printf("LOD must be at least 3, got %u\n", lod);
+    if (lod > _max_subdivisions) {
+        printf("Atmosphere: Invalid subdivision %u, max is %u\n", lod, _max_subdivisions);
         return;
     }
-    if (lod >= _LODLevels.size()) {
-        printf("Invalid LOD selected: %u, max is %zu\n", lod, _LODLevels.size() - 1);
-        return;
-    }
-    
+    if (lod < 3)
+        lod = 3;
     _LODSelected = lod;
     prepare_render();
 }

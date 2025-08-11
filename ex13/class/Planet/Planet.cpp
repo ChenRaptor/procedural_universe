@@ -5,6 +5,7 @@
 #include "color.h"
 #include <stdio.h>
 #include <chrono>
+#include "KDTree3D.hpp"
 
 Planet::Planet(const PlanetConfig& config) :
 	subdivisions_(config.subdivisions),
@@ -32,7 +33,8 @@ Planet::Planet(const PlanetConfig& config) :
 	tundraPalette_(config.tundraPalette),
 	snowPalette_(config.snowPalette),
 	mountainColors_(config.mountainColors),
-    _debug(config.debug)
+    _debug(config.debug),
+    _max_subdivisions(config.max_subdivisions)
 {}
 
 Planet::~Planet() {}
@@ -92,49 +94,24 @@ float computeHumidity(const Vec3 &v) {
     return humidity; // Valeur d'humidité calculée
 }
 
-Planet& Planet::generate() {
-    std::chrono::high_resolution_clock::time_point start;
-    if (_debug)
-        start = std::chrono::high_resolution_clock::now();
-	_wireframeSphere = new IcoSphere();
-	_wireframeSphere->generate(subdivisions_);
+void Planet::computeVertices(const Vec3& v, size_t i)
+{
+    float ContinentNoise = fbmPerlinNoise(v.x, v.y, v.z, continentOctaves_, continentPersistence_, continentNoiseScale_);
+    float bigMountainNoise = fbmPerlinNoise(v.x, v.y, v.z, bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
+    float mountainNoise = fbmPerlinNoise(v.x, v.y, v.z, mountainOctaves_, mountainPersistence_, mountainNoiseScale_);
+    float BiomeNoise = fbmPerlinNoise(v.x, v.y, v.z, biomeOctaves_, biomePersistence_, biomeNoiseScale_);
 
-    size_t vertexCount =  _wireframeSphere->vertices.size();
-    size_t indexCount = _wireframeSphere->indices.size();
+    const float threshold = 0.1f;
+    float weightContinent = smoothstep(0.0f, threshold, ContinentNoise);
+    float weightBigMountain = smoothstep(0.0f, 0.2f, bigMountainNoise);
 
-    _sphereVertices.clear();
-    _sphereIndices.clear();
-    _sphereVertices.resize(vertexCount * 9);
-    _sphereIndices.reserve(indexCount);
+    float deformedRadius = radius_ + (((mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f)) * heightAmplitude_);
+    deformedRadius += weightBigMountain * weightContinent * bigMountainNoise * heightAmplitude_ / 4;
+    float tempDeformedRadius = deformedRadius;
 
-    for (size_t i = 0; i < vertexCount; ++i) {
-        const Vec3& v = _wireframeSphere->vertices[i];
+    if (deformedRadius <= lvlSea_) deformedRadius = lvlSea_;
 
-        // Bruits pour altitude, montagnes, grandes montagnes, biomes
-        float ContinentNoise = fbmPerlinNoise(v.x, v.y, v.z, continentOctaves_, continentPersistence_, continentNoiseScale_);
-        float bigMountainNoise = fbmPerlinNoise(v.x, v.y, v.z, bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
-        float mountainNoise = fbmPerlinNoise(v.x, v.y, v.z, mountainOctaves_, mountainPersistence_, mountainNoiseScale_);
-        float BiomeNoise = fbmPerlinNoise(v.x, v.y, v.z, biomeOctaves_, biomePersistence_, biomeNoiseScale_);
-
-        // Lissage poids continent
-        const float threshold = 0.1f;
-        float weightContinent = smoothstep(0.0f, threshold, ContinentNoise);
-        float weightBigMountain = smoothstep(0.0f, 0.2f, bigMountainNoise);
-
-        // Altitude déformée
-        float deformedRadius = radius_ + (((mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f)) * heightAmplitude_);
-        deformedRadius += weightBigMountain * weightContinent * bigMountainNoise * heightAmplitude_ / 4;
-        float tempDeformedRadius = deformedRadius;
-
-        if (deformedRadius <= lvlSea_) deformedRadius = lvlSea_;
-
-        _sphereVertices[9 * i + 0] = deformedRadius * v.x;
-        _sphereVertices[9 * i + 1] = deformedRadius * v.y;
-        _sphereVertices[9 * i + 2] = deformedRadius * v.z;
-
-        _sphereVertices[9 * i + 6] = 0.f;
-        _sphereVertices[9 * i + 7] = 0.f;
-        _sphereVertices[9 * i + 8] = 0.f;
+    _LODMaxVertices[i] = deformedRadius * glm::vec3(v.x, v.y, v.z);
 
         const float equatorWidth = 0.0001f;
         float latitude = (std::acos(v.y) / M_PI);
@@ -142,24 +119,13 @@ Planet& Planet::generate() {
 
         if (deformedRadius == lvlSea_)
         {
-
             Color oceaneColor = getColorFromNoise(((mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f)), oceanPalette_);
-            float r = oceaneColor.r;
-            float g = oceaneColor.g;
-            float b = oceaneColor.b;
 
-            if (isShowedEquator_ && distanceToEquator < equatorWidth) {
-                // Couleur trait rouge équateur
-                _sphereVertices[9 * i + 3] = 1.0f;
-                _sphereVertices[9 * i + 4] = 0.0f;
-                _sphereVertices[9 * i + 5] = 0.0f;
-            } else {
-                // Couleur normale calculée (biomeColor par exemple)
-                _sphereVertices[9 * i + 3] = r;
-                _sphereVertices[9 * i + 4] = g;
-                _sphereVertices[9 * i + 5] = b;
-            }
-            continue;
+            if (isShowedEquator_ && distanceToEquator < equatorWidth)
+                _LODMaxColors[i] = Color{1.0f,  0.0f, 0.0f};
+            else
+                _LODMaxColors[i] = oceaneColor;
+            return;
         }
 
         float altitudeNormalized = (deformedRadius - radius_) / heightAmplitude_;
@@ -191,26 +157,93 @@ Planet& Planet::generate() {
         float g = biomeColor.g * (0.5f - absFactor / 2) + mountainColor.g * (0.5f + absFactor / 2);
         float b = biomeColor.b * (0.5f - absFactor / 2) + mountainColor.b * (0.5f + absFactor / 2);
 
-        _sphereVertices[9 * i + 3] = r;
-        _sphereVertices[9 * i + 4] = g;
-        _sphereVertices[9 * i + 5] = b;
+        _LODMaxColors[i] = Color{r, g, b};
+        if (isShowedEquator_ && distanceToEquator < equatorWidth)
+            _LODMaxColors[i] = Color{1.0f,  0.0f, 0.0f};
+        else 
+            _LODMaxColors[i] = Color{r, g, b};
+}
 
-        if (isShowedEquator_ && distanceToEquator < equatorWidth) {
-            // Couleur trait rouge équateur
-            _sphereVertices[9 * i + 3] = 1.0f;
-            _sphereVertices[9 * i + 4] = 0.0f;
-            _sphereVertices[9 * i + 5] = 0.0f;
-        } else {
-            // Couleur normale calculée (biomeColor par exemple)
-            _sphereVertices[9 * i + 3] = r;
-            _sphereVertices[9 * i + 4] = g;
-            _sphereVertices[9 * i + 5] = b;
+void Planet::generate(unsigned int subdivision) {
+    static std::unique_ptr<KDTree3D> kdTreeMax;
+
+    if (subdivision > _max_subdivisions) {
+        printf("Planet: Invalid subdivision %u, max is %u\n", subdivision, _max_subdivisions);
+        return;
+    }
+
+    if (_LODLevels[subdivision].sphereVertices.size() > 0)
+        return;
+
+    if (!_LODMaxsolid) {
+        printf("Planet: Generating max subdivision solid for LOD %u\n", _max_subdivisions);
+        _LODMaxsolid = new IcoSphere();
+        _LODMaxsolid->generate(_max_subdivisions);
+
+        // Construire k-d tree sur sommets max subdivision
+        std::vector<Vec3> pointsMax;
+        pointsMax.reserve(_LODMaxsolid->vertices.size());
+        for (const auto& v : _LODMaxsolid->vertices)
+            pointsMax.push_back({v.x, v.y, v.z});
+        auto kdStart = std::chrono::high_resolution_clock::now();
+        kdTreeMax.reset(new KDTree3D(pointsMax));
+        auto kdEnd = std::chrono::high_resolution_clock::now();
+
+
+        printf("KDTree construction: %lld ms\n", 
+               std::chrono::duration_cast<std::chrono::milliseconds>(kdEnd - kdStart).count());
+
+        // Calculer valeurs Perlin max subdivision multi-octave
+        _LODMaxVertices.resize(pointsMax.size());
+        _LODMaxColors.resize(pointsMax.size());
+        _LODLevels.resize(_max_subdivisions + 1);
+
+        for (size_t i = 0; i < _LODMaxsolid->vertices.size(); ++i) {
+            const Vec3& v = _LODMaxsolid->vertices[i];
+            computeVertices(v, i);
         }
     }
 
+    IcoSphere *solid;
+    if (subdivision == _max_subdivisions)
+    {
+        solid = _LODMaxsolid;
+        printf("Planet: Using precomputed max subdivision solid for LOD %u\n", _max_subdivisions);
+    }
+    else
+    {
+        solid = new IcoSphere();
+        solid->generate(subdivision);
+    }
+
+    size_t vertexCount = solid->vertices.size();
+    size_t indexCount = solid->indices.size();
+
+    _sphereVertices.clear();
+    _sphereIndices.clear();
+    _sphereVertices.resize(vertexCount * 9);
+    _sphereIndices.reserve(indexCount);
+
+    for (size_t i = 0; i < vertexCount; ++i) {
+        const Vec3& v = solid->vertices[i];
+
+        size_t nearestIndex = kdTreeMax->nearestNeighbor({v.x, v.y, v.z});
+
+        _sphereVertices[9 * i + 0] = _LODMaxVertices[nearestIndex].x;
+        _sphereVertices[9 * i + 1] = _LODMaxVertices[nearestIndex].y;
+        _sphereVertices[9 * i + 2] = _LODMaxVertices[nearestIndex].z;
+
+        _sphereVertices[9 * i + 3] = _LODMaxColors[nearestIndex].r;
+        _sphereVertices[9 * i + 4] = _LODMaxColors[nearestIndex].g;
+        _sphereVertices[9 * i + 5] = _LODMaxColors[nearestIndex].b;
+
+        _sphereVertices[9 * i + 6] = 0.f;
+        _sphereVertices[9 * i + 7] = 0.f;
+        _sphereVertices[9 * i + 8] = 0.f;
+    }
 
     // Indices
-    _sphereIndices.assign(_wireframeSphere->indices.begin(), _wireframeSphere->indices.end());
+    _sphereIndices.assign(solid->indices.begin(), solid->indices.end());
 
     // Calcul des normales par accumulation
     std::vector<Vec3> normals(vertexCount, Vec3{0.f, 0.f, 0.f});
@@ -245,52 +278,71 @@ Planet& Planet::generate() {
         _sphereVertices[9 * i + 8] = n.z;
     }
 
-    _atmosphere = new Atmosphere(subdivisions_ - 5, radius_ * 1.019f, HEX(0xCCD0D2)); // Couleur bleu ciel
-    _atmosphere->generateAllLODs();
-    if (_debug)
-    {
-        auto end = std::chrono::high_resolution_clock::now();
+    _LODLevels[subdivision].sphereVertices = _sphereVertices;
+    _LODLevels[subdivision].sphereIndices = _sphereIndices;
+}
 
-        std::chrono::duration<double> elapsed = end - start;
-        printf("Temps de génération de l'icosphère : %.6f secondes\n", elapsed.count());
-    }
+void Planet::generateAtmosphere() {
+    _atmosphere = new Atmosphere(_max_subdivisions - 5, radius_ * 1.019f, HEX(0xCCD0D2)); // Couleur bleu ciel
+    _atmosphere->generateAllLODs();
+}
+
+Planet& Planet::generateAllLODs() {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    generate(9);
+    generate(8);
+    generate(7);
+    generate(6);
+    generate(5);
+    generate(4);
+    generate(3);
+    generate(2);
+    generate(1);
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    printf("Planet: generateAllLODs took %lld ms\n", duration);
 
     return *this;
 }
 
+
+
 void Planet::prepare_render() {
-    if (!_buffersInitialized) {
-        // Générer buffers OpenGL
-        glGenVertexArrays(1, &_vao);
-        glGenBuffers(1, &_vbo);
-        glGenBuffers(1, &_ebo);
-
-        glBindVertexArray(_vao);
-
-        glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-        glBufferData(GL_ARRAY_BUFFER, _sphereVertices.size() * sizeof(float), _sphereVertices.data(), GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, _sphereIndices.size() * sizeof(unsigned int), _sphereIndices.data(), GL_STATIC_DRAW);
-
-        // Position
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-
-        // Couleur
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
-        // Normales
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glBindVertexArray(0);
-
-        _buffersInitialized = true;
+    if (_vao != 0) {
+        glDeleteVertexArrays(1, &_vao);
+        glDeleteBuffers(1, &_vbo);
+        glDeleteBuffers(1, &_ebo);
     }
+
+    glGenVertexArrays(1, &_vao);
+    glGenBuffers(1, &_vbo);
+    glGenBuffers(1, &_ebo);
+
+    glBindVertexArray(_vao);
+
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    glBufferData(GL_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereVertices.size() * sizeof(float), _LODLevels[_LODSelected].sphereVertices.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereIndices.size() * sizeof(unsigned int), _LODLevels[_LODSelected].sphereIndices.data(), GL_STATIC_DRAW);
+
+    // Position
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // Couleur
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    // Normales
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(0);
+
     if (_atmosphere) {
-        printf("Planet LOD selected: %u\n", _LODSelected - 5);
         _atmosphere->setLODSelected(_LODSelected - 5);
         _atmosphere->prepare_render();
     }
@@ -299,21 +351,20 @@ void Planet::prepare_render() {
 void Planet::setLODSelected(unsigned int lod) {
     if (_LODSelected == lod)
         return;
-    //if (lod < 3) {
-    //    printf("LOD must be at least 3, got %u\n", lod);
-    //    return;
-    //}
     if (lod >= 10) {
-        printf("Invalid LOD selected: %u, max is %d\n", lod, 9);
+        printf("Planet: Invalid LOD selected: %u, max is %d\n", lod, 9);
         return;
     }
+    if (lod < 4)
+        lod = 4;
+    printf("Planet: Setting LOD selected to %u\n", lod);
     _LODSelected = lod;
     prepare_render();
 }
 
 void Planet::render() {
     glBindVertexArray(_vao);
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(_sphereIndices.size()), GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(_LODLevels[_LODSelected].sphereIndices.size()), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
     //_atmosphere->render();
 }

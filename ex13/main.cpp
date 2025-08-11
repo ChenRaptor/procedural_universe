@@ -240,9 +240,9 @@ void init()
     cfg.subdivisions = SUBDIVISION_ISO;
     cfg.lvlSea = LVLSEA;
     cfg.biomeNoiseScale = 5.f;
-    planet = &(new Planet(cfg))->generate();
-    //planet->prepare_render();
-    planet->setLODSelected(9); // Sélectionner LOD 0 par défaut
+    planet = &(new Planet(cfg))->generateAllLODs();
+    planet->generateAtmosphere();
+    planet->setLODSelected(9);
 
     planetShader		= new Shader(vertexShaderPlanet, fragmentShaderPlanet);
     programAccum		= new Shader(vertexShaderAtmosphere, fragmentShaderAtmosphere);
@@ -293,11 +293,17 @@ void render()
 
     //radius += (targetRadius - radius) * zoomSmoothness;
     //float view[16];
-
-    if (radius > 10.0f)
+    if (radius < 4.0f)
+        planet->setLODSelected(9);
+    else if (radius < 5.0f)
+        planet->setLODSelected(8);
+    else if (radius < 6.0f)
         planet->setLODSelected(7);
-    //if (radius > 15.0f)
-    //    planet->setLODSelected(6);
+    else if (radius < 20.0f)
+        planet->setLODSelected(6);
+    else if (radius < 100.0f)
+        planet->setLODSelected(5);
+
     float camPosX = radius * cosf(cameraPitch) * sinf(cameraYaw);
     float camPosY = radius * sinf(cameraPitch);
     float camPosZ = radius * cosf(cameraPitch) * cosf(cameraYaw);
@@ -374,9 +380,24 @@ void render()
     glBindVertexArray(0);
 }
 
+int currentFPS = 60;
+
+void setTargetFPS(int fps) {
+    currentFPS = fps;
+    
+    // ARRÊTER la boucle actuelle
+    emscripten_cancel_main_loop();
+    
+    // REDÉMARRER avec nouveau timing
+    emscripten_set_main_loop(render, currentFPS, true);
+    
+    printf("FPS changed to %d (interval: %dms)\n", fps, currentFPS);
+}
+
 int main()
 {
     init();
-    emscripten_set_main_loop(render, 0, true);
+    setTargetFPS(60);
+    //emscripten_set_main_loop(render, 0, true);
     return 0;
 }

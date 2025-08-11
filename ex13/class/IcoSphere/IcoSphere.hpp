@@ -16,6 +16,10 @@ struct Vec3 {
     float length() const {
         return std::sqrt(x * x + y * y + z * z);
     }
+	float lengthSquared() const {
+    	return x * x + y * y + z * z;
+	}
+
 };
 
 class IcoSphere {

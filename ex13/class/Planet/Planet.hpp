@@ -32,6 +32,8 @@ struct PlanetConfig {
     float biomePersistence;
     float biomeNoiseScale;
 
+	unsigned int max_subdivisions;
+
 	std::vector<ColorPoint> biomePalette; // Palette de couleurs pour les biomes
 	std::vector<ColorPoint> mountainPalette;
 	std::vector<ColorPoint> bigMountainPalette;
@@ -97,7 +99,8 @@ struct PlanetConfig {
 			{0.9f, HEX(0x8c8c9c)},
 		}),
 		biomeOctaves(3), biomePersistence(0.6f), biomeNoiseScale(60.f),
-		debug(true)  // Par défaut, pas de debug
+		debug(true),  // Par défaut, pas de debug
+		max_subdivisions(9)
 	{}
 };
 
@@ -105,18 +108,21 @@ class Planet {
 	public:
 		Planet(const PlanetConfig& config);
 		~Planet();
-		Planet& generate();
+		void generate(unsigned int subdivision);
 		void prepare_render();
 		void render();
 		const std::vector<float>& getVertices() const { return _sphereVertices; }
 		const std::vector<unsigned int>& getIndices() const { return _sphereIndices; }
 		void setShowEquator(bool show) { isShowedEquator_ = show; }
-		void generateAllLODs();
+		void generateAtmosphere();
+		Planet& generateAllLODs();
 		void setLODSelected(unsigned int lod);
 		Atmosphere* getAtmosphere() const { return _atmosphere; }
 	private:
+		void computeVertices(const Vec3& v, size_t i);
 		std::map<int, IcoSphere*> lodLevels;
 		
+		unsigned int _max_subdivisions; // Nombre maximum de subdivisions pour l'icosphère
 		unsigned int subdivisions_;
 		float radius_;
 		float lvlSea_;
@@ -164,6 +170,10 @@ class Planet {
 		bool _debug;
 
 		unsigned int 			_LODSelected;
+		IcoSphere*				_LODMaxsolid = nullptr;
+		std::vector<glm::vec3>	_LODMaxVertices;
+		std::vector<Color>		_LODMaxColors;
+		std::vector<Sphere> 	_LODLevels;
 };
 
 extern const char* fragmentShaderPlanet;

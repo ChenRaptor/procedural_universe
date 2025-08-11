@@ -2,16 +2,16 @@
 #define KDTREE3D_H
 
 #include <cmath>
-#include <memory>
-#include <algorithm>
 #include <vector>
+#include <limits>
+#include <algorithm>
 #include "IcoSphere.hpp" // Pour Vec3
 
 struct KDNode {
     Vec3 point;
     size_t index;
-    KDNode* left = nullptr;
-    KDNode* right = nullptr;
+    size_t left = (size_t)(-1);  // Indice du fils gauche dans le vecteur, ou -1 si nul
+    size_t right = (size_t)(-1); // Indice du fils droit dans le vecteur, ou -1 si nul
 
     KDNode(const Vec3& pt, size_t idx) : point(pt), index(idx) {}
 };
@@ -22,69 +22,66 @@ public:
         std::vector<size_t> indices(points.size());
         for (size_t i = 0; i < points.size(); ++i)
             indices[i] = i;
-        root = build(points, indices, 0);
-    }
-
-    ~KDTree3D() {
-        freeNode(root);
+        rootIndex = build(points, indices, 0, points.size(), 0);
     }
 
     size_t nearestNeighbor(const Vec3& target) const {
         size_t bestIndex = 0;
-        float bestDist = std::numeric_limits<float>::max();
-        nearest(root, target, 0, bestIndex, bestDist);
+        float bestDistSq = std::numeric_limits<float>::max();
+        nearest(rootIndex, target, 0, bestIndex, bestDistSq);
         return bestIndex;
     }
 
 private:
-    KDNode* root;
+    std::vector<KDNode> nodes;
+    size_t rootIndex = (size_t)(-1);
 
-    KDNode* build(const std::vector<Vec3>& points, std::vector<size_t>& indices, int depth) {
-        if (indices.empty()) return nullptr;
+    size_t build(const std::vector<Vec3>& points, std::vector<size_t>& indices, int start, int end, int depth) {
+        if (start >= end) return (size_t)(-1);
+
         int axis = depth % 3;
+
         auto comp = [&](size_t a, size_t b) {
             if (axis == 0) return points[a].x < points[b].x;
             else if (axis == 1) return points[a].y < points[b].y;
             else return points[a].z < points[b].z;
         };
-        std::sort(indices.begin(), indices.end(), comp);
-        size_t median = indices.size() / 2;
 
-        std::vector<size_t> leftIndices(indices.begin(), indices.begin() + median);
-        std::vector<size_t> rightIndices(indices.begin() + median + 1, indices.end());
+        size_t median = (start + end) / 2;
+        std::nth_element(indices.begin() + start, indices.begin() + median, indices.begin() + end, comp);
 
-        KDNode* node = new KDNode(points[indices[median]], indices[median]);
-        node->left = build(points, leftIndices, depth + 1);
-        node->right = build(points, rightIndices, depth + 1);
-        return node;
+        nodes.emplace_back(points[indices[median]], indices[median]);
+        size_t nodeIdx = nodes.size() - 1;
+
+        nodes[nodeIdx].left = build(points, indices, start, median, depth + 1);
+        nodes[nodeIdx].right = build(points, indices, median + 1, end, depth + 1);
+        return nodeIdx;
     }
 
-    void freeNode(KDNode* node) {
-        if (!node) return;
-        freeNode(node->left);
-        freeNode(node->right);
-        delete node;
-    }
+    void nearest(size_t nodeIdx, const Vec3& target, int depth, size_t& bestIndex, float& bestDistSq) const {
+        if (nodeIdx == (size_t)(-1)) return;
 
-    void nearest(KDNode* node, const Vec3& target, int depth, size_t& bestIndex, float& bestDist) const {
-        if (!node) return;
-        float dist = (node->point - target).length();
-        if (dist < bestDist) {
-            bestDist = dist;
-            bestIndex = node->index;
+        const KDNode& node = nodes[nodeIdx];
+        float distSq = (node.point - target).lengthSquared();
+
+        if (distSq < bestDistSq) {
+            bestDistSq = distSq;
+            bestIndex = node.index;
         }
+
         int axis = depth % 3;
         float diff = 0.0f;
-        if (axis == 0) diff = target.x - node->point.x;
-        else if (axis == 1) diff = target.y - node->point.y;
-        else diff = target.z - node->point.z;
+        if (axis == 0) diff = target.x - node.point.x;
+        else if (axis == 1) diff = target.y - node.point.y;
+        else diff = target.z - node.point.z;
 
-        KDNode* nearChild = diff < 0 ? node->left : node->right;
-        KDNode* farChild = diff < 0 ? node->right : node->left;
+        size_t nearChild = diff < 0 ? node.left : node.right;
+        size_t farChild = diff < 0 ? node.right : node.left;
 
-        nearest(nearChild, target, depth + 1, bestIndex, bestDist);
-        if (fabs(diff) < bestDist) {
-            nearest(farChild, target, depth + 1, bestIndex, bestDist);
+        nearest(nearChild, target, depth + 1, bestIndex, bestDistSq);
+
+        if ((diff * diff) < bestDistSq) {
+            nearest(farChild, target, depth + 1, bestIndex, bestDistSq);
         }
     }
 };
