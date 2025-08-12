@@ -20,7 +20,7 @@ OUTPUT = triangle.js
 # -s FULL_ES3=1 : pour supporter OpenGL ES 3.0 complet
 # -s ALLOW_MEMORY_GROWTH : pour permettre la croissance de la mémoire à l'exécution
 # -O2 : optimisation (optionnelle mais recommandée)
-EMFLAGS = -s USE_WEBGL2=1 -s FULL_ES3=1 -s ALLOW_MEMORY_GROWTH -O2 -I ./class/IcoSphere -I ./class/Planet -I ./class/Atmosphere -I ./class/Shader -I ./class/FastSpatialLookup/ -I ./class/KDTree3D/ -I ./
+EMFLAGS = -s USE_WEBGL2=1 -s FULL_ES3=1 -s ALLOW_MEMORY_GROWTH -O3 -I ./class/IcoSphere -I ./class/Planet -I ./class/Atmosphere -I ./class/Shader -I ./class/FastSpatialLookup/ -I ./class/KDTree3D/ -I ./
 
 all: $(OUTPUT)
 

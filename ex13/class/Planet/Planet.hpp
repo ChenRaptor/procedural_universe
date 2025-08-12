@@ -145,6 +145,8 @@ class Planet {
 		float biomePersistence_;
 		float biomeNoiseScale_;
 
+		std::array<const std::vector<ColorPoint>*, 6> biomePalettes_;
+
 		std::vector<ColorPoint> biomePalette_;
 		std::vector<ColorPoint> mountainPalette_;
 		std::vector<ColorPoint> bigMoutainPalette_;

@@ -156,6 +156,8 @@ class Planet {
 		std::vector<ColorPoint> snowPalette_;
 		std::vector<ColorPoint> mountainColors_;
 
+		std::array<const std::vector<ColorPoint>*, 6> biomePalettes_;
+
 		bool isShowedEquator_ = false; // Indique si l'équateur doit être affiché
 
 		std::vector<float> _sphereVertices;

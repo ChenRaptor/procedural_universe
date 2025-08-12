@@ -8,6 +8,16 @@
 #include "KDTree3D.hpp"
 #include <memory>
 
+enum BiomeType {
+    OCEAN = 0,
+    DESERT,
+    FOREST,
+    TUNDRA,
+    MOUNTAIN,
+    SNOW,
+    // Ajoute autant de biomes que tu souhaites
+};
+
 Planet::Planet(const PlanetConfig& config) :
 	subdivisions_(config.subdivisions),
 	radius_(config.radius),
@@ -36,7 +46,14 @@ Planet::Planet(const PlanetConfig& config) :
 	mountainColors_(config.mountainColors),
     _debug(config.debug),
     _max_subdivisions(config.max_subdivisions)
-{}
+{
+    biomePalettes_[OCEAN] = &oceanPalette_;
+    biomePalettes_[DESERT] = &desertPalette_;
+    biomePalettes_[FOREST] = &forestPalette_;
+    biomePalettes_[TUNDRA] = &tundraPalette_;
+    biomePalettes_[MOUNTAIN] = &mountainPalette_;
+    biomePalettes_[SNOW] = &snowPalette_;
+}
 
 Planet::~Planet() {}
 
@@ -86,16 +103,6 @@ float smoothstep(float edge0, float edge1, float x) {
     return t * t * (3 - 2 * t);
 }
 
-enum BiomeType {
-    OCEAN = 0,
-    DESERT,
-    FOREST,
-    TUNDRA,
-    MOUNTAIN,
-    SNOW,
-    // Ajoute autant de biomes que tu souhaites
-};
-
 int getBiomeIndex(float temperature, float humidity, float altitude, float seaLevel) {
     if (altitude < seaLevel) return OCEAN;
     if (temperature > 0.7f) {
@@ -135,62 +142,45 @@ float computeHumidity(const Vec3 &v) {
 
 void Planet::computeVertices(const Vec3& v, size_t i)
 {
-    // Calculs de bruit (une seule fois)
-    float ContinentNoise   = fbmPerlinNoise(v.x, v.y, v.z, continentOctaves_, continentPersistence_, continentNoiseScale_);
-    float bigMountainNoise = fbmPerlinNoise(v.x, v.y, v.z, bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
-    float mountainNoise    = fbmPerlinNoise(v.x, v.y, v.z, mountainOctaves_, mountainPersistence_, mountainNoiseScale_);
-    float BiomeNoise       = fbmPerlinNoise(v.x, v.y, v.z, biomeOctaves_, biomePersistence_, biomeNoiseScale_);
+    // Compute perlin noise values for the current vertex
+    const float ContinentNoise		= fbmPerlinNoise(v.x, v.y, v.z, continentOctaves_, continentPersistence_, continentNoiseScale_);
+    const float bigMountainNoise	= fbmPerlinNoise(v.x, v.y, v.z, bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
+    const float mountainNoise		= fbmPerlinNoise(v.x, v.y, v.z, mountainOctaves_, mountainPersistence_, mountainNoiseScale_);
+    const float BiomeNoise			= fbmPerlinNoise(v.x, v.y, v.z, biomeOctaves_, biomePersistence_, biomeNoiseScale_);
 
-    // Calcul latitude/distance à l’équateur en avance
-    float latitude = std::acos(v.y) / M_PI;
-    //float latitude = (v.y + 1.0f) * 0.5f;
-    float distanceToEquator = std::abs(latitude - 0.5f);
-    bool onEquator = isShowedEquator_ && distanceToEquator < 0.0001f;
-
-    // Pré-calcul facteur continent
-    float continentFactor = (mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f);
-
-    // Step pour la forme
-    float weightContinent   = smoothstep(0.0f, 0.1f, ContinentNoise);
-    float weightBigMountain = smoothstep(0.0f, 0.2f, bigMountainNoise);
+    const float latitude			= std::acos(v.y) / M_PI;
+    const float distanceToEquator	= std::abs(latitude - 0.5f);
+    const float continentFactor		= (mountainNoise * bigMountainNoise * 0.6f) + (ContinentNoise * 0.4f);
+    const float weightContinent   	= smoothstep(0.0f, 0.1f, ContinentNoise);
+    const float weightBigMountain 	= smoothstep(0.0f, 0.2f, bigMountainNoise);
 
     // Calcul radius déformé
     float deformedRadius = radius_ + (continentFactor * heightAmplitude_);
     deformedRadius += weightBigMountain * weightContinent * bigMountainNoise * heightAmplitude_ / 4.0f;
 
-    // Clamp si sous l’eau
-    bool sousEau = (deformedRadius <= lvlSea_);
-    if (sousEau) deformedRadius = lvlSea_;
+    //const bool onEquator			= isShowedEquator_ && distanceToEquator < 0.0001f;
+    const bool underWater			= (deformedRadius <= lvlSea_);
+
+    if (underWater) deformedRadius = lvlSea_;
 
     _LODMaxVertices[i] = deformedRadius * glm::vec3(v.x, v.y, v.z);
 
     // --- COULEUR ---
-    if (sousEau) 
+    if (underWater) 
     {
-        //Color oceaneColor = getColorFromNoiseLUT(continentFactor, _LUTocean);
-        Color oceaneColor = getColorFromNoise(continentFactor, oceanPalette_);
-        _LODMaxColors[i] = onEquator ? Color{1.0f,0.0f,0.0f} : oceaneColor;
+		// Equator handler
+        //_LODMaxColors[i] = onEquator ? Color{1.0f,0.0f,0.0f} : getColorFromNoise(continentFactor, oceanPalette_);
+		_LODMaxColors[i] = getColorFromNoise(continentFactor, oceanPalette_);
         return;
     }
 
     // Continue ici pour la terre ferme
-    float altitudeNormalized = (deformedRadius - radius_) / heightAmplitude_;
-    float temperature = computeTemperature(latitude, altitudeNormalized, v);
-    float humidity    = computeHumidity(v);
+    const float altitudeNormalized = (deformedRadius - radius_) / heightAmplitude_;
+    const float temperature = computeTemperature(latitude, altitudeNormalized, v);
+    const float humidity    = computeHumidity(v);
 
     int biomeIdx = getBiomeIndex(temperature, humidity, deformedRadius, lvlSea_);
-    const std::vector<ColorPoint>* palette = nullptr;
-    switch (biomeIdx) {
-        case OCEAN:    palette = &oceanPalette_;   break;
-        case DESERT:   palette = &desertPalette_;  break;
-        case FOREST:   palette = &forestPalette_;  break;
-        case TUNDRA:   palette = &tundraPalette_;  break;
-        case MOUNTAIN: palette = &mountainPalette_;break;
-        case SNOW:     palette = &snowPalette_;    break;
-        default:       palette = &forestPalette_;  break;
-    }
-
-    Color biomeColor = getColorFromNoise(BiomeNoise, *palette);
+    Color biomeColor = getColorFromNoise(BiomeNoise, *biomePalettes_[biomeIdx]);
     float factor = (mountainNoise * bigMountainNoise * 1.0f);
     Color mountainColor = getColorFromNoise(factor, mountainColors_);
     float absFactor = std::abs(tanhf(20.0f * factor));
@@ -202,7 +192,9 @@ void Planet::computeVertices(const Vec3& v, size_t i)
         biomeColor.b * invMix + mountainColor.b * mix
     };
 
-    _LODMaxColors[i] = onEquator ? Color{1.0f,0.0f,0.0f} : finalColor;
+	// Equator handler
+    //_LODMaxColors[i] = onEquator ? Color{1.0f,0.0f,0.0f} : finalColor;
+	_LODMaxColors[i] = finalColor;
 }
 
 
@@ -267,6 +259,7 @@ void Planet::generate(unsigned int subdivision) {
 
     size_t vertexCount = solid->vertices.size();
     size_t indexCount = solid->indices.size();
+	const std::vector<Vec3>& vertices = solid->vertices;
 
     _sphereVertices.clear();
     _sphereIndices.clear();
@@ -274,21 +267,19 @@ void Planet::generate(unsigned int subdivision) {
     _sphereIndices.reserve(indexCount);
 
     for (size_t i = 0; i < vertexCount; ++i) {
-        const Vec3& v = solid->vertices[i];
+        const Vec3& v = vertices[i];
 
         size_t nearestIndex = kdTreeMax->nearestNeighbor({v.x, v.y, v.z});
+		const glm::vec<3, float> nearestVertex = _LODMaxVertices[nearestIndex];
+		const Color& nearestColor = _LODMaxColors[nearestIndex];
 
-        _sphereVertices[9 * i + 0] = _LODMaxVertices[nearestIndex].x;
-        _sphereVertices[9 * i + 1] = _LODMaxVertices[nearestIndex].y;
-        _sphereVertices[9 * i + 2] = _LODMaxVertices[nearestIndex].z;
+        _sphereVertices[9 * i + 0] = nearestVertex.x;
+        _sphereVertices[9 * i + 1] = nearestVertex.y;
+        _sphereVertices[9 * i + 2] = nearestVertex.z;
 
-        _sphereVertices[9 * i + 3] = _LODMaxColors[nearestIndex].r;
-        _sphereVertices[9 * i + 4] = _LODMaxColors[nearestIndex].g;
-        _sphereVertices[9 * i + 5] = _LODMaxColors[nearestIndex].b;
-
-        _sphereVertices[9 * i + 6] = 0.f;
-        _sphereVertices[9 * i + 7] = 0.f;
-        _sphereVertices[9 * i + 8] = 0.f;
+        _sphereVertices[9 * i + 3] = nearestColor.r;
+        _sphereVertices[9 * i + 4] = nearestColor.g;
+        _sphereVertices[9 * i + 5] = nearestColor.b;
     }
 
     // Indices
