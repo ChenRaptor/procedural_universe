@@ -8,6 +8,7 @@
 #include "color.h"
 #include "IcoSphere.hpp"
 #include "Atmosphere.hpp"
+#include "FBMNoise.hpp"
 
 struct PlanetConfig {
     unsigned int subdivisions;

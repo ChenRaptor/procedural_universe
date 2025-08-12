@@ -135,37 +135,37 @@ void Atmosphere::generateAllLODs() {
 }
 
 void Atmosphere::prepare_render() {
-    if (_vao != 0) {
-        glDeleteVertexArrays(1, &_vao);
-        glDeleteBuffers(1, &_vbo);
-        glDeleteBuffers(1, &_ebo);
-    }
+    //if (_vao != 0) {
+    //    glDeleteVertexArrays(1, &_vao);
+    //    glDeleteBuffers(1, &_vbo);
+    //    glDeleteBuffers(1, &_ebo);
+    //}
 
-    glGenVertexArrays(1, &_vao);
-    glGenBuffers(1, &_vbo);
-    glGenBuffers(1, &_ebo);
+    //glGenVertexArrays(1, &_vao);
+    //glGenBuffers(1, &_vbo);
+    //glGenBuffers(1, &_ebo);
 
-    glBindVertexArray(_vao);
+    //glBindVertexArray(_vao);
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereVertices.size() * sizeof(float), _LODLevels[_LODSelected].sphereVertices.data(), GL_STATIC_DRAW);
+    //glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    //glBufferData(GL_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereVertices.size() * sizeof(float), _LODLevels[_LODSelected].sphereVertices.data(), GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereIndices.size() * sizeof(unsigned int), _LODLevels[_LODSelected].sphereIndices.data(), GL_STATIC_DRAW);
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereIndices.size() * sizeof(unsigned int), _LODLevels[_LODSelected].sphereIndices.data(), GL_STATIC_DRAW);
 
-    // Position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    //// Position
+    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
+    //glEnableVertexAttribArray(0);
 
-    // Couleur
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    //// Couleur
+    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
+    //glEnableVertexAttribArray(1);
 
-    // Normales
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    //// Normales
+    //glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
+    //glEnableVertexAttribArray(2);
 
-    glBindVertexArray(0);
+    //glBindVertexArray(0);
 }
 
 void Atmosphere::setLODSelected(unsigned int lod) {
@@ -182,7 +182,7 @@ void Atmosphere::setLODSelected(unsigned int lod) {
 }
 
 void Atmosphere::render() {
-    glBindVertexArray(_vao);
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(_LODLevels[_LODSelected].sphereIndices.size()), GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    //glBindVertexArray(_vao);
+    //glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(_LODLevels[_LODSelected].sphereIndices.size()), GL_UNSIGNED_INT, 0);
+    //glBindVertexArray(0);
 }

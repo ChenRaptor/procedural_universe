@@ -7,6 +7,8 @@
 #include <chrono>
 #include "KDTree3D.hpp"
 #include <memory>
+#include "FBMNoise.hpp"
+#include <execution>
 
 Planet::Planet(const PlanetConfig& config) :
 	subdivisions_(config.subdivisions),
@@ -118,15 +120,14 @@ float computeTemperature(float latitude, float altitude, const Vec3 &v) {
     // Ajout bruit FBM multi-échelle (exemple)
     float tempNoise1 = fbmPerlinNoise(v.x, v.y, v.z, 4, 0.9f, 2.0f);
     float tempNoise2 = fbmPerlinNoise(v.x, v.y, v.z, 4, 0.9f, 20.0f);
-    float temperature = baseTemp + 0.3f * tempNoise1 + 0.15f * tempNoise2;
 
-    return temperature; // Valeur de température calculée
+    return (baseTemp + 0.3f * tempNoise1 + 0.15f * tempNoise2); // Valeur de température calculée
 }
 
 float computeHumidity(const Vec3 &v) {
     // Humidity based on latitude and altitude
-    float humidityNoise1 = fbmPerlinNoise(v.x + 100, v.y + 100, v.z + 100, 4, 0.5f, 2.0f);
-    float humidityNoise2 = fbmPerlinNoise(v.x + 200, v.y + 200, v.z + 200, 4, 0.6f, 20.0f);
+    float humidityNoise1 = fbmPerlinNoise(v.x, v.y, v.z, 4, 0.5f, 2.0f);
+    float humidityNoise2 = fbmPerlinNoise(v.x, v.y, v.z, 4, 0.6f, 20.0f);
     float humidity = 0.7f * humidityNoise1 + 0.3f * humidityNoise2;
     humidity = (humidity + 1.0f) * 0.5f * 0.70f;
 
@@ -245,10 +246,28 @@ void Planet::generate(unsigned int subdivision) {
         _LODMaxColors.resize(pointsMax.size());
         //_LODLevels.resize(_max_subdivisions + 1);
 
+        //FBMNoise fbmContinent(continentOctaves_, continentPersistence_, continentNoiseScale_);
+        //FBMNoise fbmBigMountain(bigMountainOctaves_, bigMountainPersistence_, bigMountainNoiseScale_);
+        //FBMNoise fbmMountain(mountainOctaves_, mountainPersistence_, mountainNoiseScale_);
+        //FBMNoise fbmBiome(biomeOctaves_, biomePersistence_, biomeNoiseScale_);
+
+
         for (size_t i = 0; i < _LODMaxsolid->vertices.size(); ++i) {
             const Vec3& v = _LODMaxsolid->vertices[i];
             computeVertices(v, i);
         }
+
+        //auto vertexCount = _LODMaxsolid->vertices.size();
+        //size_t chunkSize = 1000; // Groupe 1000 sommets par thread
+
+        //std::vector<size_t> indices(vertexCount);
+        //std::iota(indices.begin(), indices.end(), 0);
+
+        //std::for_each(std::execution::par, 
+        //            indices.begin(), indices.end(), [&] (size_t i) {
+        //    computeVertices(_LODMaxsolid->vertices[i], i);
+        //});
+
 
         //_LUTocean = generateColorLUT(oceanPalette_);
     }
@@ -338,9 +357,6 @@ void Planet::generateAtmosphere() {
 
 Planet& Planet::generateAllLODs() {
     auto start = std::chrono::high_resolution_clock::now();
-
-    generate(9);
-    generate(8);
     generate(7);
     generate(6);
     generate(5);
@@ -359,37 +375,37 @@ Planet& Planet::generateAllLODs() {
 
 
 void Planet::prepare_render() {
-    if (_vao != 0) {
-        glDeleteVertexArrays(1, &_vao);
-        glDeleteBuffers(1, &_vbo);
-        glDeleteBuffers(1, &_ebo);
-    }
+    //if (_vao != 0) {
+    //    glDeleteVertexArrays(1, &_vao);
+    //    glDeleteBuffers(1, &_vbo);
+    //    glDeleteBuffers(1, &_ebo);
+    //}
 
-    glGenVertexArrays(1, &_vao);
-    glGenBuffers(1, &_vbo);
-    glGenBuffers(1, &_ebo);
+    //glGenVertexArrays(1, &_vao);
+    //glGenBuffers(1, &_vbo);
+    //glGenBuffers(1, &_ebo);
 
-    glBindVertexArray(_vao);
+    //glBindVertexArray(_vao);
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereVertices.size() * sizeof(float), _LODLevels[_LODSelected].sphereVertices.data(), GL_STATIC_DRAW);
+    //glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+    //glBufferData(GL_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereVertices.size() * sizeof(float), _LODLevels[_LODSelected].sphereVertices.data(), GL_STATIC_DRAW);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereIndices.size() * sizeof(unsigned int), _LODLevels[_LODSelected].sphereIndices.data(), GL_STATIC_DRAW);
+    //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
+    //glBufferData(GL_ELEMENT_ARRAY_BUFFER, _LODLevels[_LODSelected].sphereIndices.size() * sizeof(unsigned int), _LODLevels[_LODSelected].sphereIndices.data(), GL_STATIC_DRAW);
 
-    // Position
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    //// Position
+    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
+    //glEnableVertexAttribArray(0);
 
-    // Couleur
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+    //// Couleur
+    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
+    //glEnableVertexAttribArray(1);
 
-    // Normales
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    //// Normales
+    //glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(6 * sizeof(float)));
+    //glEnableVertexAttribArray(2);
 
-    glBindVertexArray(0);
+    //glBindVertexArray(0);
 
     if (_atmosphere) {
         _atmosphere->setLODSelected(_LODSelected - 5);
@@ -412,8 +428,8 @@ void Planet::setLODSelected(unsigned int lod) {
 }
 
 void Planet::render() {
-    glBindVertexArray(_vao);
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(_LODLevels[_LODSelected].sphereIndices.size()), GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    //glBindVertexArray(_vao);
+    //glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(_LODLevels[_LODSelected].sphereIndices.size()), GL_UNSIGNED_INT, 0);
+    //glBindVertexArray(0);
     //_atmosphere->render();
 }
